@@ -201,7 +201,7 @@ function pace.RefreshFiles()
 		pace.Editor:MakeBar()
 	end
 
-	if pace.SpawnlistBrowser:IsValid() then
+	if IsValid(pace.SpawnlistBrowser) then
 		pace.SpawnlistBrowser:PopulateFromClient()
 	end
 end
