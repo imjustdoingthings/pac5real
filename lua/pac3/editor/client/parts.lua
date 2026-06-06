@@ -499,10 +499,12 @@ pace.suppress_flashing_property = false
 
 function pace.FlashProperty(obj, key, edit)
 	if pace.suppress_flashing_property then return end
+	if not obj then return end
+	if not key then return end
 	if not obj.flashing_property then
 		obj.flashing_property = true
 		timer.Simple(0.1, function()
-			if not obj.pace_properties[key] then return end
+			if not IsValid(obj.pace_properties[key]) then return end
 			obj.pace_properties[key]:Flash()
 			pace.current_flashed_property = key
 			if edit then
@@ -1508,7 +1510,7 @@ do -- menu
 			else
 				obj.pace_tree_node:SetAlpha( 255 )
 			end
-			
+
 		end
 		--RebuildBulkHighlight()
 	end
@@ -2069,7 +2071,7 @@ do -- menu
 								local x,y,z = unpack(string.Split(val, " "))
 								val = Color(x,y,z)
 							end
-							end_value:SetValue(val) 
+							end_value:SetValue(val)
 						end
 					elseif property_type == "number" then
 						function start_value.OnValueChanged(val)
@@ -2764,7 +2766,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 				mat:SetName(kw.."_"..string.sub(obj.UniqueID,1,6))
 				mat:SetLoadVmt(mat2)
 				submaterials[i] = kw.."_"..string.sub(obj.UniqueID,1,6)
-				
+
 			end
 			if #submaterials == 1 then
 				obj:SetMaterials("") obj:SetMaterial(submaterials[1])
@@ -3255,7 +3257,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 			obj:SetFOV(math.Round(pace.ViewFOV,1))
 			pace.PopulateProperties(obj)
 		end, translate_from_view):SetImage("icon16/zoom.png")
-		
+
 		AddOptionRightClickable("reset FOV" , function()
 			obj:SetFOV(-1)
 			pace.PopulateProperties(obj)
@@ -3306,7 +3308,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 			AddOptionRightClickable(bonename, function()
 				bone_reposition(bonename)
 			end, full_bones_menu):SetImage("icon16/connect.png")
-		end 
+		end
 
 		local function extract_camera_from_jiggle()
 			camera = obj
@@ -3378,7 +3380,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 			if trace.Entity ~= ent then
 				height = height_headbase
 			end
- 
+
 			local info, pnl = main:AddSubMenu("calculated head height : " .. height .. " HU (" .. math.Round(height / 39,2) .." m)")
 			info:AddOption("alternate height calculations"):SetImage("icon16/help.png")
 			info:SetTooltip("Due to lack of standardization on models' scales, heights are not guaranteed to be accurate or consistent\n\nThe unit conversion used is 1 Hammer Unit : 2.5 cm (1 inch)")
@@ -3410,7 +3412,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 					obj:SetPosition(Vector(5,-4,0)) obj:SetEyeAnglesLerp(1) obj:SetAngles(Angle(0,-90,-90))
 					pace.PopulateProperties(obj)
 				end, fp):SetIcon("icon16/eye.png")
-	
+
 				AddOptionRightClickable("on neck + collapsed head", function()
 					extract_camera_from_jiggle()
 					obj:SetBone("neck")
@@ -3421,7 +3423,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 					local event = pac.CreatePart("event") event:SetEvent("viewed_by_owner") event:SetParent(bone)
 					pace.PopulateProperties(obj)
 				end, fp):SetIcon("icon16/eye.png")
-	
+
 				AddOptionRightClickable("on neck + collapsed head + eyeang limiter", function()
 					extract_camera_from_jiggle()
 					obj:SetBone("neck")
@@ -3441,31 +3443,31 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 				extract_camera_from_jiggle()
 				pace.PopulateProperties(obj)
 			end, main):SetIcon("icon16/chart_line_delete.png")
-	
+
 			AddOptionRightClickable("close up (zoomed on the face)", function()
 				extract_camera_from_jiggle()
 				obj:SetBone("head") obj:SetAngles(Angle(0,90,90)) obj:SetPosition(Vector(3,-20,0)) obj:SetEyeAnglesLerp(0) obj:SetFOV(45)
 				pace.PopulateProperties(obj)
 			end, main):SetIcon("icon16/monkey.png")
-	
+
 			AddOptionRightClickable("Cowboy / medium shot (waist up) (relative to neck)", function()
 				extract_camera_from_jiggle()
 				obj:SetBone("neck") obj:SetAngles(Angle(0,120,90)) obj:SetPosition(Vector(14,-24,0)) obj:SetEyeAnglesLerp(0) obj:SetFOV(-1)
 				pace.PopulateProperties(obj)
 			end, main):SetIcon("icon16/user.png")
-	
+
 			AddOptionRightClickable("Cowboy / medium shot (waist up) (no bone) (20 + 0.6*height)", function()
 				extract_camera_from_jiggle()
 				obj:SetBone("invalidbone") obj:SetAngles(Angle(0,180,0)) obj:SetPosition(Vector(40,0,20 + 0.6*height)) obj:SetEyeAnglesLerp(0) obj:SetFOV(-1)
 				pace.PopulateProperties(obj)
 			end, main):SetIcon("icon16/user.png")
-	
+
 			AddOptionRightClickable("over the shoulder (no bone) (12 + 0.8*height)", function()
 				extract_camera_from_jiggle()
 				obj:SetBone("invalidbone") obj:SetAngles(Angle(0,0,0)) obj:SetPosition(Vector(-30,15,12 + 0.8*height)) obj:SetEyeAnglesLerp(0.3) obj:SetFOV(-1)
 				pace.PopulateProperties(obj)
 			end, main):SetIcon("icon16/user_gray.png")
-	
+
 			AddOptionRightClickable("over the shoulder (with jiggle)", function()
 				local jiggle = insert_camera_into_jiggle()
 				jiggle:SetConstrainSphere(75) jiggle:SetSpeed(3)
@@ -3989,7 +3991,7 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 				menu:AddOption("(" .. #pace.BulkSelectList .. " parts in Bulk select) Add to multiple target parts", function()
 					local anti_duplicate = {}
 					local uid_tbl = string.Split(obj.MultipleTargetParts,";")
-					
+
 					for i,uid in ipairs(uid_tbl) do
 						anti_duplicate[uid] = uid
 					end
@@ -4004,7 +4006,7 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 				end):SetIcon("icon16/star.png")
 			end
 		end
-		
+
 		local menu2, pnl = menu:AddSubMenu("Show graph", function()
 			pace.OpenProxyGrapher(obj)
 		end) pnl:SetImage("icon16/chart_line.png")
@@ -4170,7 +4172,7 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 				local parent = obj:GetParent()
 				local grandparent = obj:GetParent()
 				if parent.Parent then grandparent = parent:GetParent() end
-				
+
 				for i,part in ipairs(pace.BulkSelectList) do
 					part:SetAffectChildrenOnly(true)
 					part:SetDestinationPart()
