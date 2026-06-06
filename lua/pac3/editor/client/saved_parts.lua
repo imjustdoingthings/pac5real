@@ -429,10 +429,10 @@ function pace.LoadParts(name, clear, override_part)
 				pace.LoadPartsFromTable(data, clear, override_part)
 			end
 		end
-	end
-	pace.last_loaded_outfit = name
-	if name ~= "autoload.txt" and not string.find(name, "pac3/__backup") then
-		cookie.Set( "pac_last_loaded_outfit", name)
+		pace.last_loaded_outfit = name
+		if name ~= "autoload.txt" and not string.find(name, "pac3/__backup") then
+			cookie.Set( "pac_last_loaded_outfit", name)
+		end
 	end
 end
 
