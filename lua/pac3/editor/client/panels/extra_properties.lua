@@ -1006,7 +1006,7 @@ do -- script command
 
 		local editor = vgui.Create("pace_luapad", frame)
 		frame.luapad = editor
-		install_fontsize_buttons(frame, editor, true, self.CurrentKey)
+		install_fontsize_buttons(frame, editor, true, self.CurrentKey, self)
 		editor:Dock(FILL)
 
 		editor:SetText(part[self.CurrentKey])
