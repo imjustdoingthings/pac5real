@@ -300,31 +300,15 @@ do
 		local parts = {}
 		local children = {}
 		for i,v in pairs(part:GetChildrenList()) do
-			table.insert(children, v)
+			children[v] = v
 		end
-
-		local function find(prt)
-			table.insert(parts, prt)
-			local parent = prt:GetParent()
-			if parent:IsValid() then
-				find(parent)
-			end
-		end
-
-		find(part)
-
 		for i,v in pairs(pac.GetLocalParts()) do
-			if table.HasValue(parts, v) then
-				v.no_populate = false
-				v.dormant_node = false
-			elseif table.HasValue(children, v) then
-				v.no_populate = false
-				v.dormant_node = false
-			else
-				v.no_populate = true
-				v.dormant_node = true
-			end
+			v.no_populate = false
+			v.dormant_node = false
 			v.focused = false
+			if not children[v] then
+				if v.fake_root_parent then continue end
+				parts[v] = v
 			end
 		end
 		part.focused = true
@@ -374,10 +358,6 @@ do
 		pace.RefreshTree(true)
 	end
 end
-
-
-
->>>>>>> pac3develop/develop
 function PANEL:OnMouseReleased(mc)
 	if mc == MOUSE_RIGHT then
 		pace.Call("PartMenu")
