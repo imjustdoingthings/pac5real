@@ -7,7 +7,7 @@ PAC3 gives you the ability to personalize your player model's look by placing ob
 You can wear your outfit on any server with PAC3 and everyone should be able to see it on you as long as they have the content you used.
 
 ---
-# New combat-related parts:
+# (from PAC develop) New combat-related parts:
 
 	damage_zone: deals damage (a more direct and controllable alternative to projectiles)
  
