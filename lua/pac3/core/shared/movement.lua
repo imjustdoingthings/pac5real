@@ -162,7 +162,7 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 			local phys = ply:GetPhysicsObject()
 			if IsValid(phys) then
 				local targetMass = math.Clamp(self.Mass, massLowerLimit:GetFloat(), massUpperLimit:GetFloat())
-				if phys:GetMass() ~= targetMass then
+				if math.abs(phys:GetMass() - targetMass) > 0.1 then
 					phys:SetMass(targetMass)
 				end
 			end
@@ -188,11 +188,19 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 	end
 
 	local sv_grav = gravityConvar:GetFloat()
+	if sv_grav == 0 then sv_grav = 1 end
+
 	local use_engine_gravity = (self.Gravity.x == 0 and self.Gravity.y == 0 and self.Gravity.z <= 0 and sv_grav > 0)
+	local grav_compensation = 0
+
 	if use_engine_gravity then
-		local g = -self.Gravity.z / sv_grav
-		if g == 0 then g = 0.00000000000000001 end
-		ply:SetGravity(g)
+		local desired_grav = -self.Gravity.z
+		local engine_grav = desired_grav * 1.05
+		grav_compensation = engine_grav - desired_grav
+		
+		if engine_grav == 0 then engine_grav = 0.00000000000000001 end
+		ply:SetGravity(engine_grav / sv_grav)
+		-- wow source might be the hackiest engine ever 
 	else
 		ply:SetGravity(0.00000000000000001)
 	end
@@ -432,6 +440,9 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 		end
 
 		vel = finalvec
+	end
+	if use_engine_gravity and grav_compensation > 0 then
+		vel.z = vel.z + grav_compensation * FrameTime()
 	end
 
 	mv:SetVelocity(vel)
