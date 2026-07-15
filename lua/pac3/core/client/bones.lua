@@ -192,14 +192,21 @@ end
 local viewmodelClassName = "viewmodel"
 
 local function GetBonePosition(ent, id)
-	local mat = ent:GetBoneMatrix(id)
-	if not mat then return end
+	local pos, ang = ent:GetBonePosition(id)
 
-	local pos, ang = mat:GetTranslation(), mat:GetAngles()
+	if not pos then return end
 
 	if ang.p ~= ang.p then ang.p = 0 end
 	if ang.y ~= ang.y then ang.y = 0 end
 	if ang.r ~= ang.r then ang.r = 0 end
+
+	if pos == ent:GetPos() then
+		local mat = ent:GetBoneMatrix(id)
+		if mat then
+			pos = mat:GetTranslation()
+			ang = mat:GetAngles()
+		end
+	end
 
 	if ent == pac.LocalHands or ent:GetClass() == viewmodelClassName then
 		local owner = ent:GetOwner()
@@ -231,11 +238,8 @@ function pac.GetBonePosAng(ent, id, parent)
 			if enabled then
 				if target:IsValid() then
 					if bone ~= 0 then
-						local mat = target:GetBoneMatrix(target:TranslatePhysBoneToBone(bone))
-						local wpos, wang
-
-						if mat then
-							wpos, wang = mat:GetTranslation(), mat:GetAngles()
+						local wpos, wang = target:GetBonePosition(target:TranslatePhysBoneToBone(bone))
+						if wpos and wang then
 							endpos = LocalToWorld(hitpos, Angle(), wpos, wang)
 						else
 							endpos = target:LocalToWorld(hitpos)
@@ -259,7 +263,7 @@ function pac.GetBonePosAng(ent, id, parent)
 	elseif id == "player_eyes" then
 		local oldEnt = ent -- Track reference to the original entity in case we aren't allowed to draw here
 
-		local ent = ent.pac_traceres and ent.pac_traceres.Entity or util_QuickTrace(ent:EyePos(), ent:GetAimVector() * 16000, {ent, ent:GetParent()}).Entity
+		local ent = ent.pac_traceres and ent.pac_traceres.Entity or util_QuickTrace(ent:EyePos(), (ent.GetAimVector and ent:GetAimVector() or ent:GetForward()) * 16000, {ent, ent:GetParent()}).Entity
 		local allowed = pac_isCameraAllowed()
 
 		if ent:IsValid() and (allowed or ent ~= pac.LocalPlayer) then -- Make sure we don't draw on viewer's screen if we aren't allowed to
