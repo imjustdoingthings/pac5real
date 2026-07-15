@@ -159,7 +159,13 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 
 	if SERVER then
 		if allowMass:GetInt() == 1 then
-			ply:GetPhysicsObject():SetMass(math.Clamp(self.Mass, massLowerLimit:GetFloat(), massUpperLimit:GetFloat()))
+			local phys = ply:GetPhysicsObject()
+			if IsValid(phys) then
+				local targetMass = math.Clamp(self.Mass, massLowerLimit:GetFloat(), massUpperLimit:GetFloat())
+				if phys:GetMass() ~= targetMass then
+					phys:SetMass(targetMass)
+				end
+			end
 		end
 	end
 
@@ -264,7 +270,8 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 		--ice and glass go too fast? what do?
 		if sv_friction > 0 then
 			sv_friction = 1 - (sv_friction * 15) / 1000 --default is 8, and the formula ends up being equivalent to 0.12 groundfriction variable multiplying vel by 0.88
-			vel = vel / sv_friction
+			vel.x = vel.x / sv_friction
+			vel.y = vel.y / sv_friction
 		end
 	end
 
@@ -336,7 +343,8 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 		local friction = self.GroundFriction
 		friction = -(friction) + 1
 
-		vel = vel * friction
+		vel.x = vel.x * friction
+		vel.y = vel.y * friction
 
 		speed = speed:GetNormalized() * math.min(speed:Length(), self.MaxGroundSpeed)
 
