@@ -18,7 +18,7 @@ net.Receive("pac_event_set_sequence", function(len, ply)
 		end
 	end
 
-	plyTbl.pac_command_events[event .. num] = {name = event, time = pac.RealTime, on = 1}
+	plyTbl.pac_command_events[event .. num] = {name = event, time = CurTime(), on = 1}
 end)
 
 -- event
@@ -59,7 +59,7 @@ concommand.Add("pac_event", function(ply, _, args)
 	net.Broadcast()
 	ply.pac_command_events = ply.pac_command_events or {}
 	ply.pac_command_events[event] = ply.pac_command_events[event] or {}
-	ply.pac_command_events[event] = {name = event, time = pac.RealTime, on = extra}
+	ply.pac_command_events[event] = {name = event, time = CurTime(), on = extra}
 end, nil,
 [[pac_event triggers command events. it needs at least one argument.
 name: any name, preferably without spaces

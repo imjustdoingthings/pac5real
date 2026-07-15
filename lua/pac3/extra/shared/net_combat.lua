@@ -863,7 +863,7 @@ if SERVER then
 			local remaining_dmg,surviving_layer,side_effect_dmg = GetHPBarDamage(target, dmginfo:GetDamage())
 
 			if IsValid(dmginfo:GetInflictor()) then
-				if dmginfo:GetInflictor():GetClass() == "pac_bullet_emitter" and hitscan_consents[target] == false then --unconsenting for pac hitscans = no damage, exit now
+				if dmginfo:GetInflictor():GetClass() == "pac_bullet_emitter" and hitscan_consents[target] ~= true then --unconsenting for pac hitscans = no damage, exit now
 					return true
 				end
 			end
@@ -969,7 +969,7 @@ if SERVER then
 
 			local prop_protected_final
 			if IsValid(owner) then --created entities should be fine
-				prop_protected_final = prop_protected and owner:IsPlayer() and damage_zone_consents[owner] == false
+				prop_protected_final = prop_protected and owner:IsPlayer() and damage_zone_consents[owner] ~= true
 			else --players and world props could nil out
 				prop_protected_final = false
 			end
@@ -979,7 +979,7 @@ if SERVER then
 
 			if ent:IsPlayer() then
 				if not kill then dissolvable = false
-				elseif damage_zone_consents[ent] == false then dissolvable = false end
+				elseif damage_zone_consents[ent] ~= true then dissolvable = false end
 			elseif inflictor == ent then
 				dissolvable = false --do we allow that?
 			end
@@ -1027,7 +1027,7 @@ if SERVER then
 			local target_ply
 			if IsValid(owner) then --created entities should be fine
 				target_ply = owner
-				prop_protected_consent = owner ~= inflictor and ent ~= inflictor and owner:IsPlayer() and damage_zone_consents[owner] == false
+				prop_protected_consent = owner ~= inflictor and ent ~= inflictor and owner:IsPlayer() and damage_zone_consents[owner] ~= true
 			else --players and world props could nil out
 				prop_protected_consent = false
 				if ent:IsPlayer() then
@@ -1050,7 +1050,7 @@ if SERVER then
 				elseif		--one of the base classes
 						(damageable_point_ent_classes[ent:GetClass()] ~= false) --non-blacklisted class
 						and --enforce prop protection
-						(bot_exception or (owner == inflictor or ent == inflictor or (pac_sv_prop_protection and damage_zone_consents[target_ply] ~= false) or not pac_sv_prop_protection))
+						(bot_exception or (owner == inflictor or ent == inflictor or (pac_sv_prop_protection and damage_zone_consents[target_ply] == true) or not pac_sv_prop_protection))
 						then
 
 					if is_player then
@@ -1529,11 +1529,11 @@ if SERVER then
 				addvel = addvel * dist_multiplier
 				add_angvel = add_angvel * dist_multiplier
 
-				local unconsenting_owner = owner ~= ply and force_consents[owner] == false
+				local unconsenting_owner = owner ~= ply and force_consents[owner] ~= true
 
 				if is_player then
 					if  tbl.Players or (ent == ply and tbl.AffectPlayerOwner) then
-						if (ent ~= ply and force_consents[ent] ~= false) or (ent == ply and tbl.AffectPlayerOwner) then
+						if (ent ~= ply and force_consents[ent] == true) or (ent == ply and tbl.AffectPlayerOwner) then
 							oldvel = ent:GetVelocity()
 							phys_ent:SetVelocity(oldvel * (-1 + final_damping) + addvel)
 							ent:SetVelocity(oldvel * (-1 + final_damping) + addvel)
@@ -2242,8 +2242,8 @@ if SERVER then
 			local owner = Try_CPPIGetOwner(targ_ent) or targ_ent
 			if not IsValid(owner) then return end
 
-			local unconsenting_owner = owner ~= ply and (grab_consents[owner] == false or (targ_ent:IsPlayer() and grab_consents[targ_ent] == false))
-			local calcview_unconsenting = owner ~= ply and (calcview_consents[owner] == false or (targ_ent:IsPlayer() and calcview_consents[targ_ent] == false))
+			local unconsenting_owner = owner ~= ply and (grab_consents[owner] ~= true or (targ_ent:IsPlayer() and grab_consents[targ_ent] ~= true))
+			local calcview_unconsenting = owner ~= ply and (calcview_consents[owner] ~= true or (targ_ent:IsPlayer() and calcview_consents[targ_ent] ~= true))
 
 			if unconsenting_owner then
 				if owner:IsPlayer() then return
@@ -2258,7 +2258,7 @@ if SERVER then
 
 			local consent_break_condition = false
 
-			if grab_consents[targ_ent_owner] == false then --if the target player is non-consenting
+			if grab_consents[targ_ent_owner] ~= true then --if the target player is non-consenting
 				if targ_ent_owner == auth_ent_owner then consent_break_condition = false  --player can still grab his owned entities
 				elseif targ_ent:IsPlayer() then --if not the same player, we cannot grab
 					consent_break_condition = true
