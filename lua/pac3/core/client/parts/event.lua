@@ -3868,9 +3868,6 @@ function PART:TriggerEvent(b)
 			end
 		end
 	end
-			end
-		end
-	end
 end
 
 PART.Operators = {

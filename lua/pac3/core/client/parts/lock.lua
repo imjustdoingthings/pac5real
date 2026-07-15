@@ -481,11 +481,12 @@ function PART:reset_ent_ang()
 			net.WriteEntity(self.target_ent)
 			net.WriteEntity(self:GetPlayerOwner())
 			net.SendToServer()
-		end
+		end)
+		
 		if self.Players and self.target_ent:IsPlayer() then
 			self.target_ent:DisableMatrix("RenderMultiply")
 		end
-	end)
+	end
 end
 
 function PART:OnRemove()
