@@ -6,6 +6,13 @@ PAC3 gives you the ability to personalize your player model's look by placing ob
 
 You can wear your outfit on any server with PAC3 and everyone should be able to see it on you as long as they have the content you used.
 
+<img width="650" alt="Screenshot 2023-09-02 at 06 54 28" src="https://github.com/CapsAdmin/pac3/assets/204157/276c7bfc-f5a9-422a-bfb6-683a26981539">
+
+Some links to check out:
+* [wiki](https://wiki.pac3.info/start "PAC3 Wiki")
+* [steam workshop](http://steamcommunity.com/sharedfiles/filedetails/?id=104691717 "Workshop Version") 
+* [discord server](https://discord.gg/utpR3gJ "Join PAC3 Discord Server") 
+
 ---
 # (from PAC develop) New combat-related parts:
 
@@ -155,12 +162,3 @@ just a quick edit for people with higher resolution screens
 ## New tools
 
 -destroy hidden parts, proxies and events. I also call it Ultra cleanup. This is a quick but destructive optimization tool to improve framerate by only keeping visible parts and obliterating non-static elements. You can mark parts to keep by writing "important" in their notes field.
-
-<img width="650" alt="Screenshot 2023-09-02 at 06 54 28" src="https://github.com/CapsAdmin/pac3/assets/204157/276c7bfc-f5a9-422a-bfb6-683a26981539">
-
-Some links to check out:
-* [wiki](https://wiki.pac3.info/start "PAC3 Wiki")
-* [steam workshop](http://steamcommunity.com/sharedfiles/filedetails/?id=104691717 "Workshop Version") 
-* [discord server](https://discord.gg/utpR3gJ "Join PAC3 Discord Server") 
-
----
