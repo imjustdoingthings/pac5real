@@ -414,5 +414,5 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 		mv:SetOrigin(mv:GetOrigin() + vel * 0.01)
 	end
 
-	return true
+	return false
 end)
