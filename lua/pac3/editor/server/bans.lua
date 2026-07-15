@@ -75,7 +75,7 @@ function pace.Unban(ply)
 end
 
 local function GetPlayer(target)
-	for key, ply in pairs(player.GetAll()) do
+	for _, ply in player.Iterator() do
 		if ply:SteamID() == target or ply:UniqueID() == target or ply:Nick():lower():find(target:lower()) then
 			return ply
 		end
@@ -122,7 +122,7 @@ net.Receive("pac.BanUpdate", function(len, ply)
 	end
 
 	pac.Message("Received ban list update operation from : ", ply)
-	pac.Message("Time : ", os.date( "%a %X %x", os.time() ))
+	pac.Message("Time : ", os.date("%a %X %x", os.time()))
 	local playerlist = net.ReadTable()
 	for i,v in pairs(playerlist) do
 		if playerlist[i] == "Allowed" then
@@ -141,9 +141,9 @@ net.Receive("pac.RequestBanStates", function(len,ply)
 
 	local archive = net.ReadBool()
 	pac.Message("Received ban list request from : ", ply)
-	pac.Message("Time : ", os.date( "%a %X %x", os.time() ))
+	pac.Message("Time : ", os.date("%a %X %x", os.time()))
 	local players = {}
-	for _,v in pairs(player.GetAll()) do
+	for _, v in player.Iterator() do
 		players[v] = false
 	end
 	if not pace.Bans then

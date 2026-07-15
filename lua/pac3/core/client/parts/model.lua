@@ -1,20 +1,12 @@
-CreateConVar( "pac_model_max_scales", "10000", FCVAR_ARCHIVE, "Maximum scales model can have")
-
-
-
-
 local pac = pac
 
-local cam = cam
-local cam_PopModelMatrix = cam.PopModelMatrix
-local cam_PushModelMatrix = cam.PushModelMatrix
-local Color = Color
 local EF_BONEMERGE = EF_BONEMERGE
 local MATERIAL_CULLMODE_CCW = MATERIAL_CULLMODE_CCW
 local MATERIAL_CULLMODE_CW = MATERIAL_CULLMODE_CW
-local Matrix = Matrix
-local NULL = NULL
-local render = render
+local cam = cam
+local surface = surface
+local cam_PopModelMatrix = cam.PopModelMatrix
+local cam_PushModelMatrix = cam.PushModelMatrix
 local render_CullMode = render.CullMode
 local render_MaterialOverride = render.ModelMaterialOverride
 local render_MaterialOverrideByIndex = render.MaterialOverrideByIndex
@@ -22,9 +14,19 @@ local render_RenderFlashlights = render.RenderFlashlights
 local render_SetBlend = render.SetBlend
 local render_SetColorModulation = render.SetColorModulation
 local render_SuppressEngineLighting = render.SuppressEngineLighting
-local surface = surface
+local math_abs = math.abs
+local math_Clamp = math.Clamp
+local Color = Color
 local Vector = Vector
+local Matrix = Matrix
+local ProtectedCall = ProtectedCall
 local vector_origin = vector_origin
+local NULL = NULL
+
+local entMeta = FindMetaTable("Entity")
+local IsEntValid = entMeta.IsValid
+local IsPlayer = entMeta.IsPlayer
+local GetBoneCount = entMeta.GetBoneCount
 
 local BUILDER, PART = pac.PartTemplate("base_drawable")
 
@@ -62,11 +64,13 @@ BUILDER:StartStorableVars()
 		:GetSet("ModelModifiers", "", {hidden = true})
 		:GetSet("Material", "", {editor_panel = "material"})
 		:GetSet("Materials", "", {hidden = true})
-		:GetSet("Skin", 0, {editor_onchange = function(self, num) return math.Round(math.Clamp(tonumber(num), 0, pace.current_part:GetOwner():SkinCount())) end})
+		:GetSet("Skin", 0, {editor_onchange = function(self, num) return math.Round(math_Clamp(tonumber(num), 0, pace.current_part:GetOwner():SkinCount())) end})
 		:GetSet("LevelOfDetail", 0, {editor_clamp = {-1, 8}, editor_round = true})
 		:GetSetPart("EyeTarget")
 
 :EndStorableVars()
+
+local model_max_scales = CreateConVar("pac_model_max_scales", "10000", FCVAR_ARCHIVE, "Maximum scales model can have")
 
 PART.Owner = NULL
 
@@ -78,7 +82,7 @@ end
 
 function PART:GetDynamicProperties()
 	local ent = self:GetOwner()
-	if not ent:IsValid() or not ent:GetBodyGroups() then return end
+	if not IsEntValid(ent) or not ent:GetBodyGroups() then return end
 
 	local tbl = {}
 
@@ -93,12 +97,14 @@ function PART:GetDynamicProperties()
 			get = function()
 				return self:ModelModifiersToTable(self:GetModelModifiers()).skin
 			end,
-			udata = {editor_onchange = function(self, num) return math.Clamp(math.Round(num), 0, ent:SkinCount() - 1) end},
+			udata = {editor_onchange = function(self, num) return math_Clamp(math.Round(num), 0, ent:SkinCount() - 1) end},
 		}
 	end
 
-	if ent:GetMaterials() and #ent:GetMaterials() > 1 then
-		for i, name in ipairs(ent:GetMaterials()) do
+	local materials = ent:GetMaterials()
+
+	if materials and materials[2] then
+		for i, name in ipairs(materials) do
 			name = name:match(".+/(.+)") or name
 			tbl[name] = {
 				key = name,
@@ -110,7 +116,7 @@ function PART:GetDynamicProperties()
 					local tbl = self.Materials:Split(";")
 					tbl[i] = val
 
-					for i, name in ipairs(ent:GetMaterials()) do
+					for i, name in ipairs(materials) do
 						tbl[i] = tbl[i] or ""
 					end
 
@@ -150,18 +156,21 @@ end
 
 function PART:SetLevelOfDetail(val)
 	self.LevelOfDetail = val
+
 	local ent = self:GetOwner()
-	if ent:IsValid() then
+
+	if IsEntValid(ent) then
 		ent:SetLOD(val)
 	end
 end
 
-function PART:SetSkin(var)
-	self.Skin = var
-	local owner = self:GetOwner()
+function PART:SetSkin(val)
+	self.Skin = val
 
-	if owner:IsValid() then
-		owner:SetSkin(var)
+	local ent = self:GetOwner()
+
+	if IsEntValid(ent) then
+		ent:SetSkin(val)
 	end
 end
 
@@ -184,17 +193,19 @@ end
 
 function PART:ModelModifiersToString(tbl)
 	local str = ""
+
 	for k, v in pairs(tbl) do
 		str = str .. k .. "=" .. v .. ";"
 	end
+
 	return str
 end
 
 function PART:SetModelModifiers(str)
 	self.ModelModifiers = str
-	local owner = self:GetOwner()
+	local ent = self:GetOwner()
 
-	if not owner:IsValid() then return end
+	if not IsEntValid(ent) then return end
 
 	local tbl = self:ModelModifiersToTable(str)
 
@@ -203,13 +214,13 @@ function PART:SetModelModifiers(str)
 		tbl.skin = nil
 	end
 
-	if not owner:GetBodyGroups() then return end
-
 	self.draw_bodygroups = {}
 	self.bodygroup_exceptions = self.bodygroup_exceptions or {}
 	local dyn_props = self:GetDynamicProperties()
 
-	for i, info in ipairs(owner:GetBodyGroups()) do
+	local bodygroups = ent:GetBodyGroups()
+	for i = 1, #bodygroups do
+		local info = bodygroups[i]
 		local val = tbl[info.name]
 		if self.bodygroup_exceptions[info.name] then
 			if dyn_props["_"..info.name] then
@@ -252,7 +263,9 @@ end
 function PART:SetMaterials(str)
 	self.Materials = str
 
-	local materials = self:GetOwner():IsValid() and self:GetOwner():GetMaterials()
+	local ent = self:GetOwner()
+
+	local materials = IsEntValid(ent) and ent:GetMaterials()
 
 	if not materials then return end
 
@@ -284,17 +297,20 @@ end
 
 function PART:Reset()
 	self:Initialize()
+
 	for _, key in pairs(self:GetStorableVars()) do
 		if PART[key] then
 			self["Set" .. key](self, self["Get" .. key](self))
 		end
 	end
+
 	self.cached_dynamic_props = nil
 end
 
 function PART:OnBecomePhysics()
 	local ent = self:GetOwner()
-	if not ent:IsValid() then return end
+	if not IsEntValid(ent) then return end
+
 	ent:PhysicsInit(SOLID_NONE)
 	ent:SetMoveType(MOVETYPE_NONE)
 	ent:SetNoDraw(true)
@@ -312,10 +328,10 @@ function PART:Initialize()
 end
 
 function PART:OnShow()
-	local owner = self:GetParentOwner()
 	local ent = self:GetOwner()
+	local owner = self:GetParentOwner()
 
-	if ent:IsValid() and owner:IsValid() and owner ~= ent then
+	if IsEntValid(ent) and IsEntValid(owner) and owner ~= ent then
 		ent:SetPos(owner:EyePos())
 		ent:SetLegacyTransform(self.LegacyTransform)
 		self:SetBone(self:GetBone())
@@ -346,9 +362,9 @@ function PART:BindMaterials(ent)
 			local mat = materials[i]
 
 			if mat then
-				render_MaterialOverrideByIndex(i-1, mat)
+				render_MaterialOverrideByIndex(i - 1, mat)
 			else
-				render_MaterialOverrideByIndex(i-1, nil)
+				render_MaterialOverrideByIndex(i - 1, nil)
 			end
 		end
 	elseif self.material_override then
@@ -363,9 +379,9 @@ function PART:BindMaterials(ent)
 				local mat = stack[1]
 
 				if mat then
-					render_MaterialOverrideByIndex(i-1, mat:GetRawMaterial())
+					render_MaterialOverrideByIndex(i - 1, mat:GetRawMaterial())
 				else
-					render_MaterialOverrideByIndex(i-1, nil)
+					render_MaterialOverrideByIndex(i - 1, nil)
 				end
 			end
 		end
@@ -379,7 +395,7 @@ function PART:BindMaterials(ent)
 end
 
 function PART:PreEntityDraw(ent, pos, ang)
-	if not ent:IsPlayer() and pos and ang then
+	if not IsPlayer(ent) and pos and ang then
 		if not self.skip_orient then
 			ent:SetPos(pos)
 			ent:SetAngles(ang)
@@ -393,7 +409,8 @@ function PART:PreEntityDraw(ent, pos, ang)
 		local brightness = self.Brightness
 
 		-- render.SetColorModulation and render.SetAlpha set the material $color and $alpha.
-		render_SetColorModulation(r*brightness, g*brightness, b*brightness)
+		render_SetColorModulation(r * brightness, g * brightness, b * brightness)
+
 		if not pac.drawing_motionblur_alpha then
 			render_SetBlend(self.Alpha)
 		end
@@ -431,7 +448,7 @@ end
 function PART:OnDraw()
 	local ent = self:GetOwner()
 
-	if not ent:IsValid() then
+	if not IsEntValid(ent) then
 		self:Reset()
 		ent = self:GetOwner()
 	end
@@ -442,7 +459,6 @@ function PART:OnDraw()
 		self:DrawLoadingText(ent, pos)
 		return
 	end
-
 
 	self:PreEntityDraw(ent, pos, ang)
 		self:DrawModel(ent, pos, ang)
@@ -484,10 +500,11 @@ end
 function PART:DrawModel(ent, pos, ang)
 	if self.loading then
 		self:DrawLoadingText(ent, pos)
+
+		if not self.obj_mesh then return end
 	end
 
 	if self.Alpha == 0 or self.Size == 0 then return end
-	if self.loading and not self.obj_mesh then return end
 
 	if self.NoCulling or self.Invert then
 		render_CullMode(MATERIAL_CULLMODE_CW)
@@ -562,7 +579,7 @@ function PART:RefreshModel()
 
 	local ent = self:GetOwner()
 
-	if ent:IsValid() then
+	if IsEntValid(ent) then
 		pac.ResetBoneCache(ent)
 	end
 
@@ -619,7 +636,8 @@ end
 
 function PART:ProcessModelChange()
 	local owner = self:GetOwner()
-	if not owner:IsValid() then return end
+	if not IsEntValid(owner) then return end
+
 	local path = self.Model
 
 	if path:find("://", nil, true) then
@@ -629,7 +647,6 @@ function PART:ProcessModelChange()
 
 			pac.urlobj.GetObjFromURL(path, false, false,
 				function(meshes, err)
-
 					local function set_mesh(part, mesh)
 						local owner = part:GetOwner()
 						part.obj_mesh = mesh
@@ -733,28 +750,29 @@ function PART:SetModel(path)
 	self.Model = path
 
 	local owner = self:GetOwner()
-	if not owner:IsValid() then return end
+	if not IsEntValid(owner) then return end
 
 	self.old_model = path
 	self:ProcessModelChange()
 end
 
-local NORMAL = Vector(1, 1, 1)
+local vec_one = Vector(1, 1, 1)
 
 function PART:CheckScale()
-	local owner = self:GetOwner()
-	if not owner:IsValid() then return end
-
 	-- RenderMultiply doesn't work with this..
-	if self.BoneMerge and owner:GetBoneCount() and owner:GetBoneCount() > 1 then
-		if self.Scale * self.Size ~= NORMAL then
-			if not self.requires_bone_model_scale then
-				self.requires_bone_model_scale = true
-			end
-			return true
-		end
+	if self.BoneMerge then
+		local owner = self:GetOwner()
 
-		self.requires_bone_model_scale = false
+		if IsEntValid(owner) and GetBoneCount(owner) > 1 then
+			if self.Scale * self.Size ~= vec_one then
+				if not self.requires_bone_model_scale then
+					self.requires_bone_model_scale = true
+				end
+				return true
+			end
+
+			self.requires_bone_model_scale = false
+		end
 	end
 end
 
@@ -764,16 +782,24 @@ function PART:SetAlternativeScaling(b)
 end
 
 function PART:SetScale(vec)
-	local max_scale = GetConVar("pac_model_max_scales"):GetFloat()
-	local largest_scale = math.max(math.abs(vec.x), math.abs(vec.y), math.abs(vec.z))
+	local max_scale = model_max_scales:GetFloat()
+	local largest_scale = math.max(math_abs(vec.x), math_abs(vec.y), math_abs(vec.z))
 
-	if vec and max_scale > 0 and (LocalPlayer() ~= self:GetPlayerOwner()) then --clamp for other players if they have pac_model_max_scales convar more than 0
-		vec = Vector(math.Clamp(vec.x, -max_scale, max_scale), math.Clamp(vec.y, -max_scale, max_scale), math.Clamp(vec.z, -max_scale, max_scale))
+	if vec and max_scale > 0 and pac.LocalPlayer ~= self:GetPlayerOwner() then --clamp for other players if they have pac_model_max_scales convar more than 0
+		vec = Vector(math_Clamp(vec.x, -max_scale, max_scale), math_Clamp(vec.y, -max_scale, max_scale), math_Clamp(vec.z, -max_scale, max_scale))
 	end
-	if largest_scale > 10000 then --warn about the default max scale
+
+	if largest_scale > 10000 then
+		--warn about the default max scale
 		self:SetError("Scale is being limited due to having an excessive component. Default maximum values are 10000")
-	else self:SetError() end --if ok, clear the warning
-	vec = vec or Vector(1, 1, 1)
+	else
+		--if ok, clear the warning
+		self:SetError()
+	end
+
+	if not vec then
+		vec = Vector(1, 1, 1)
+	end
 
 	self.Scale = vec
 
@@ -782,11 +808,9 @@ function PART:SetScale(vec)
 	end
 end
 
-local vec_one = Vector(1, 1, 1)
-
 function PART:ApplyMatrix()
 	local ent = self:GetOwner()
-	if not ent:IsValid() then return end
+	if not IsEntValid(ent) then return end
 
 	local mat = Matrix()
 
@@ -795,7 +819,7 @@ function PART:ApplyMatrix()
 		mat:Rotate(self.Angles + self.AngleOffset)
 	end
 
-	if ent:IsPlayer() or ent:IsNPC() then
+	if IsPlayer(ent) or ent:IsNPC() then
 		pac.emut.MutateEntity(self:GetPlayerOwner(), "size", ent, self.Size, {
 			StandingHullHeight = self.StandingHullHeight,
 			CrouchingHullHeight = self.CrouchingHullHeight,
@@ -839,13 +863,16 @@ function PART:SetSize(var)
 end
 
 function PART:CheckBoneMerge()
-	local ent = self:GetOwner()
-
-	if ent == pac.LocalHands or ent == pac.LocalViewModel then return end
-
 	if self.skip_orient then return end
 
-	if ent:IsValid() and not ent:IsPlayer() and ent:GetModel() then
+	local ent = self:GetOwner()
+
+	if ent ~= pac.LocalViewModel
+		and ent ~= pac.LocalHands
+		and IsEntValid(ent)
+		and not IsPlayer(ent)
+		and ent:GetModel()
+	then
 		if self.BoneMerge then
 			local owner = self:GetParentOwner()
 
@@ -854,8 +881,10 @@ function PART:CheckBoneMerge()
 
 				if not ent:IsEffectActive(EF_BONEMERGE) then
 					ent:AddEffects(EF_BONEMERGE)
+
 					owner.pac_bonemerged = owner.pac_bonemerged or {}
 					table.insert(owner.pac_bonemerged, ent)
+
 					ent.RenderOverride = function()
 						ent.pac_drawing_model = true
 						ent:DrawModel()
@@ -864,21 +893,21 @@ function PART:CheckBoneMerge()
 				end
 			end
 		else
-			if ent:GetParent():IsValid() then
-				local owner = ent:GetParent()
+			local owner = ent:GetParent()
+
+			if IsEntValid(owner) then
 				ent:SetParent(NULL)
 
 				if ent:IsEffectActive(EF_BONEMERGE) then
 					ent:RemoveEffects(EF_BONEMERGE)
 					ent.RenderOverride = nil
 
-					if owner:IsValid() then
-						owner.pac_bonemerged = owner.pac_bonemerged or {}
-						for i, v in ipairs(owner.pac_bonemerged) do
-							if v == ent then
-								table.remove(owner.pac_bonemerged, i)
-								break
-							end
+					owner.pac_bonemerged = owner.pac_bonemerged or {}
+
+					for i = 1, #owner.pac_bonemerged do
+						if owner.pac_bonemerged[i] == ent then
+							table.remove(owner.pac_bonemerged, i)
+							break
 						end
 					end
 				end
@@ -890,21 +919,23 @@ function PART:CheckBoneMerge()
 end
 
 function PART:OnBuildBonePositions()
-	if self.AlternativeScaling then return end
+	if not self.AlternativeScaling and self.requires_bone_model_scale then
+		local ent = self:GetOwner()
 
-	local ent = self:GetOwner()
-	local owner = self:GetParentOwner()
+		if not IsEntValid(ent)
+			or GetBoneCount(ent) < 1
+			or not IsEntValid(self:GetParentOwner())
+		then
+			return
+		end
 
-	if not ent:IsValid() or not owner:IsValid() or not ent:GetBoneCount() or ent:GetBoneCount() < 1 then return end
-
-	if self.requires_bone_model_scale then
 		local scale = self.Scale * self.Size
 
-		for i = 0, ent:GetBoneCount() - 1 do
+		for i = 0, GetBoneCount(ent) - 1 do
 			if i == 0 then
 				ent:ManipulateBoneScale(i, ent:GetManipulateBoneScale(i) * Vector(scale.x ^ 0.25, scale.y ^ 0.25, scale.z ^ 0.25))
 			else
-				ent:ManipulateBonePosition(i, ent:GetManipulateBonePosition(i) + Vector((scale.x-1) ^ 4, 0, 0))
+				ent:ManipulateBonePosition(i, ent:GetManipulateBonePosition(i) + Vector((scale.x - 1) ^ 4, 0, 0))
 				ent:ManipulateBoneScale(i, ent:GetManipulateBoneScale(i) * scale)
 			end
 		end

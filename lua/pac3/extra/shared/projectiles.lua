@@ -70,7 +70,6 @@ do -- projectile entity
 		end
 
 		function ENT:SetData(ply, pos, ang, part)
-
 			self.projectile_owner = ply
 
 			local radius = math.Clamp(part.Radius, 0.01, pac_sv_projectile_max_phys_radius:GetFloat())
@@ -79,7 +78,8 @@ do -- projectile entity
 			else
 				local valid_fallback = util.IsValidModel( part.FallbackSurfpropModel ) and not IsUselessModel(part.FallbackSurfpropModel) and pac_sv_projectile_allow_custom_collision_mesh:GetBool()
 				--print("valid fallback? " .. part.FallbackSurfpropModel , valid_fallback)
-				self:PhysicsInitBox(Vector(1,1,1) * - radius, Vector(1,1,1) * radius, part.SurfaceProperties)
+
+				self:PhysicsInitBox(Vector(-radius, -radius, -radius), Vector(radius, radius, radius), part.SurfaceProperties)
 
 				if part.OverridePhysMesh and valid_fallback then
 					self:SetModel(part.FallbackSurfpropModel)
@@ -88,6 +88,7 @@ do -- projectile entity
 
 				if valid_fallback and part.RescalePhysMesh then
 					local physmesh = self:GetPhysicsObject():GetMeshConvexes()
+
 					--hack from prop resizer
 					for convexkey, convex in ipairs( physmesh ) do
 						for poskey, postab in ipairs( convex ) do
@@ -95,14 +96,12 @@ do -- projectile entity
 						end
 					end
 
-					self:PhysicsInitMultiConvex( physmesh, part.SurfaceProperties)
-					self:EnableCustomCollisions( true )
+					self:PhysicsInitMultiConvex(physmesh, part.SurfaceProperties)
+					self:EnableCustomCollisions(true)
 				elseif not valid_fallback then
-					self:PhysicsInitBox(Vector(1,1,1) * - radius, Vector(1,1,1) * radius, part.SurfaceProperties)
+					self:PhysicsInitBox(Vector(-radius, -radius, -radius), Vector(radius, radius, radius), part.SurfaceProperties)
 				end
-
 			end
-
 
 			local phys = self:GetPhysicsObject()
 			phys:SetMaterial(part.SurfaceProperties)
@@ -130,7 +129,6 @@ do -- projectile entity
 			else
 				phys:EnableCollisions(false)
 			end
-
 
 			phys:SetMass(math.Clamp(part.Mass, 0.001, pac_sv_projectile_max_mass:GetFloat()))
 			phys:SetDamping(0, 0)
@@ -243,7 +241,9 @@ do -- projectile entity
 						local closest_1 = {}
 						local closest_2 = {}
 
-						for _, ent in ipairs(ents.FindInSphere(pos, radius)) do
+						local ents_tbl = ents.FindInSphere(pos, radius)
+						for i = 1, #ents_tbl do
+							local ent = ents_tbl[i]
 							if
 								ent ~= self and
 								ent ~= ply and
@@ -382,7 +382,9 @@ do -- projectile entity
 			if self.part_data.Damage > 0 then
 				if self.part_data.DamageType == "heal" then
 					if damage_radius > 0 then
-						for _, ent in ipairs(ents.FindInSphere(data.HitPos, damage_radius)) do
+						local ents_tbl = ents.FindInSphere(data.HitPos, damage_radius)
+						for i = 1, #ents_tbl do
+							local ent = ents_tbl[i]
 							if (ent ~= ply or self.part_data.CollideWithOwner) and ent:Health() < ent:GetMaxHealth() then
 								ent:SetHealth(math.min(ent:Health() + self.part_data.Damage, ent:GetMaxHealth()))
 							end
@@ -392,7 +394,9 @@ do -- projectile entity
 					end
 				elseif self.part_data.DamageType == "armor" then
 					if damage_radius > 0 then
-						for _, ent in ipairs(ents.FindInSphere(data.HitPos, damage_radius)) do
+						local ents_tbl = ents.FindInSphere(data.HitPos, damage_radius)
+						for i = 1, #ents_tbl do
+							local ent = ents_tbl[i]
 							if ent.SetArmor and ent.Armor then
 								local maxArmor = ent.GetMaxArmor and ent:GetMaxArmor() or 100
 								if (ent ~= ply or self.part_data.CollideWithOwner) and ent:Armor() < maxArmor then
@@ -413,7 +417,9 @@ do -- projectile entity
 						local ent = data.HitEntity
 						if damage_radius > 0 then
 							-- this should also use blast damage to find which entities it can damage
-							for _, ent in ipairs(ents.FindInSphere(data.HitPos, damage_radius)) do
+							local ents_tbl = ents.FindInSphere(data.HitPos, damage_radius)
+							for i = 1, #ents_tbl do
+								local ent = ents_tbl[i]
 								if ent ~= self and ent:IsSolid() and hook.Run("CanProperty", ply, "ignite", ent) ~= false and (ent ~= ply or self.part_data.CollideWithOwner) then
 									ent:Ignite(math.min(self.part_data.Damage, 5))
 								end
@@ -432,7 +438,9 @@ do -- projectile entity
 						info:SetDamageType(damage_types[self.part_data.DamageType] or damage_types.generic)
 
 						if damage_radius > 0 then
-							for _, ent in ipairs(ents.FindInSphere(data.HitPos, damage_radius)) do
+							local ents_tbl = ents.FindInSphere(data.HitPos, damage_radius)
+							for i = 1, #ents_tbl do
+								local ent = ents_tbl[i]
 								if ent ~= ply or self.part_data.CollideWithOwner then
 									ent:TakeDamageInfo(info)
 								end
@@ -655,7 +663,7 @@ if SERVER then
 			end
 
 			net.Start("pac_projectile_attach")
-				net.WriteEntity(ply)
+				net.WritePlayer(ply)
 				net.WriteInt(ent:EntIndex(), 16)
 				net.WriteString(part.UniqueID)
 				net.WriteString(part.SurfaceProperties)

@@ -15,10 +15,9 @@ local BUILDER, PART = pac.PartTemplate("base_drawable")
 
 local draw_distance = CreateClientConVar("pac_limit_text_2d_draw_distance", "1000", true, false, "How far to see other players' text parts using 2D modes. They will start fading out 200 units before this distance.")
 
-
 net.Receive("pac_chat_typing_mirror_broadcast", function(len)
 	local text = net.ReadString()
-	local ply = net.ReadEntity()
+	local ply = net.ReadPlayer()
 	ply.pac_mirrored_chat_text = text
 end)
 
@@ -157,7 +156,6 @@ for k,v in pairs(gmod_basefonts) do
 	table.insert(default_fonts, newfont)
 	usable_fonts[newfont] = true
 end
-
 
 PART.ClassName = "text"
 PART.Group = "effects"
@@ -573,7 +571,9 @@ function PART:OnDraw()
 		elseif diff == 2 then DisplayText = "Normal"
 		elseif diff == 3 then DisplayText = "Hard" end
 	elseif self.TextOverride == "Players" then
-		DisplayText = #player.GetAll()
+		local count = 0
+		for _, v in player.Iterator() do count = count + 1 end
+		DisplayText = count
 	elseif self.TextOverride == "MaxPlayers" then
 		DisplayText = game.MaxPlayers()
 	elseif self.TextOverride == "Weapon" then

@@ -612,19 +612,19 @@ do
 		self.ZoomText:SetText(math.Round(num, 1) .. "%")
 	end
 
-	vgui.Register( "pac_AssetBrowser_ZoomControls", PANEL, "DPanel" )
+	vgui.Register("pac_AssetBrowser_ZoomControls", PANEL, "DPanel")
 end
 
 do
 	local PANEL = {}
 
-	local BaseClass = baseclass.Get( "DScrollPanel" )
+	local BaseClass = baseclass.Get("DScrollPanel")
 
 	function PANEL:Init()
-		self:SetPaintBackground( false )
+		self:SetPaintBackground(false)
 
-		self.IconList = vgui.Create( "DPanel", self:GetCanvas())
-		self.IconList:Dock( TOP )
+		self.IconList = vgui.Create("DPanel", self:GetCanvas())
+		self.IconList:Dock(TOP)
 
 		function self.IconList:PerformLayout()
 			if not self.invalidate then return end
@@ -635,7 +635,10 @@ do
 
 			local total_width
 
-			for _, child in ipairs(self:GetChildren()) do
+			local children = self:GetChildren()
+			for i = 1, #children do
+				local child = children[i]
+
 				height = math.max(height, child:GetTall())
 
 				if x + child:GetWide() > max_width then
@@ -651,9 +654,11 @@ do
 			end
 
 			if total_width then
-				for _, child in ipairs(self:GetChildren()) do
+				for i = 1, #children do
+					local child = children[i]
+
 					local x, y = child:GetPos()
-					child:SetPos(x - total_width/2, y)
+					child:SetPos(x - total_width * 0.5, y)
 				end
 			end
 
@@ -663,7 +668,7 @@ do
 
 	function PANEL:Add(pnl)
 		pnl.ready_to_draw = true
-		pnl.original_size = {w=pnl:GetWide(),h=pnl:GetTall()}
+		pnl.original_size = {w = pnl:GetWide(), h = pnl:GetTall()}
 		if self.ZoomControls then
 			pnl:SetSize(pnl.original_size.w * self.ZoomControls.zoom * 0.01, pnl.original_size.h * self.ZoomControls.zoom * 0.01)
 		end
@@ -678,7 +683,9 @@ do
 
 	function PANEL:CalcZoom()
 		if self.ZoomControls then
-			for i,v in ipairs(self.IconList:GetChildren()) do
+			local children = self.IconList:GetChildren()
+			for i = 1, #children do
+				local v = children[i]
 				v:SetSize(v.original_size.w * self.ZoomControls.zoom * 0.01, v.original_size.h * self.ZoomControls.zoom * 0.01)
 			end
 			self.IconList.invalidate = true
@@ -694,12 +701,13 @@ do
 	end
 
 	function PANEL:Clear()
-		for k,v in ipairs(self.IconList:GetChildren()) do
-			v:Remove()
+		local children = self.IconList:GetChildren()
+		for i = 1, #children do
+			children[i]:Remove()
 		end
 	end
 
-	vgui.Register( "pac_AssetBrowser_ContentContainer", PANEL, "DScrollPanel" )
+	vgui.Register("pac_AssetBrowser_ContentContainer", PANEL, "DScrollPanel")
 end
 
 function pace.AssetBrowser(callback, browse_types_str, part_key)
@@ -1255,12 +1263,13 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 					local count = 0
 					local function find_recursive(path, pathid)
 						if count >= 500 then return end
-						local files_, folders_ = file.Find(path .. "/*", pathid)
-						if files_ then
-							for i,v in ipairs(files_) do
+
+						local files, folders = file.Find(path .. "/*", pathid)
+						if files then
+							for i = 1, #files do
 								count = count + 1
 
-								local path = path .. "/" .. v
+								local path = path .. "/" .. files[i]
 
 								path = path:gsub("^.-(" .. browse_types[1] .. "/.+)$", "%1")
 
@@ -1280,11 +1289,13 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 									sound_list:AddSound(path, pathid)
 								end
 							end
-							for i,v in ipairs(folders_) do
-								find_recursive(path .. "/" .. v, pathid)
+
+							for i = 1, #folders do
+								find_recursive(path .. "/" .. folders[i], pathid)
 							end
 						end
 					end
+
 					find_recursive(path .. browse_types[1], node:GetPathID())
 				else
 					local files, folders = file.Find(searchString .. "/*", node:GetPathID())
@@ -1317,8 +1328,8 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 						end
 						]]
 						if self.dir == "models" then
-							for k, v in pairs(files) do
-								local path = node:GetFolder() ..  "/" .. v
+							for i = 1, #files do
+								local path = node:GetFolder() ..  "/" .. files[i]
 
 								if not path:StartWith("models/pac3_cache/") then
 									if not IsUselessModel(path) then
@@ -1327,7 +1338,8 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 								end
 							end
 						elseif self.dir == "materials" then
-							for k, v in pairs(files) do
+							for i = 1, #files do
+								local v = files[i]
 								local path = node:GetFolder() ..  "/" .. v
 
 								if v:find("%.vmt$") then
@@ -1340,8 +1352,8 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 
 							end
 						elseif self.dir == "sound" then
-							for k, v in pairs(files) do
-								local path = node:GetFolder() ..  "/" .. v
+							for i = 1, #files do
+								local path = node:GetFolder() ..  "/" .. files[i]
 								sound_list:AddSound(path, pathid)
 							end
 						end
@@ -1421,7 +1433,8 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 				},
 			}
 
-			for _, info in ipairs(special) do
+			for i = 1, #special do
+				local info = special[i]
 				addBrowseContent(viewPanel, root_node, info.title, info.icon, "", info.folder)
 			end
 		end
@@ -1459,7 +1472,9 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 
 		local _, folders = file.Find("addons/*", "MOD")
 
-		for _, path in ipairs(folders) do
+		for i = 1, #folders do
+			local path = folders[i]
+
 			if
 				file.IsDir("addons/" .. path .. "/materials", "MOD") or
 				file.IsDir("addons/" .. path .. "/sound", "MOD") or
@@ -1533,7 +1548,6 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 	end
 
 	function search:StartSearch(search_text, folder, extensions, pathid, cb)
-
 		cancel:SetVisible(true)
 
 		local files, folders = find(folder .. "*", pathid)
@@ -1543,18 +1557,23 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 		if files then
 			update_title(table.Count(self.delay_functions) .. " directories left - " .. folder .. "*")
 
-			for k, v in ipairs(files) do
+			for i = 1, #files do
+				local v = files[i]
 				local file = folder .. v
+
 				for _, ext in ipairs(extensions) do
 					if v:EndsWith(ext) and file:find(search_text, nil, true) then
 						local func = function() return cb(file, pathid) end
 						self.delay_functions[func] = func
+
 						break
 					end
 				end
 			end
 
-			for k, v in ipairs(folders) do
+			for i = 1, #folders do
+				local v = folders[i]
+
 				if v ~= "pac3_cache" then
 					local func = function()
 						self:StartSearch(search_text, folder .. v .. "/", extensions, pathid, cb)
@@ -1601,6 +1620,7 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 				self:Cancel(reason)
 				return
 			end
+
 			self.delay_functions[func] = nil
 			if i > 50 then break end
 		end

@@ -1499,13 +1499,28 @@ PART.Inputs.flat_dot_right = function(self)
 	return 0
 end
 
-PART.Inputs.server_maxplayers = function(self)
-	return game.MaxPlayers()
+PART.Inputs.server_maxplayers = function(self) return game.MaxPlayers() end
+PART.Inputs.server_playercount = function(self)
+	local count = 0
+	for _, ply in player.Iterator() do count = count + 1 end
+	return count
 end
-PART.Inputs.server_playercount = function(self) return #player.GetAll() end
 PART.Inputs.server_population = PART.Inputs.server_playercount
-PART.Inputs.server_botcount = function(self) return #player.GetBots() end
-PART.Inputs.server_humancount = function(self) return #player.GetHumans() end
+
+PART.Inputs.server_botcount = function(self)
+	local count = 0
+	for _, ply in player.Iterator() do
+		if ply:IsBot() then count = count + 1 end
+	end
+	return count
+end
+PART.Inputs.server_humancount = function(self)
+	local count = 0
+	for _, ply in player.Iterator() do
+		if not ply:IsBot() then count = count + 1 end
+	end
+	return count
+end
 
 PART.Inputs.pac_healthbars_total = function(self)
 	local ent = self:GetPlayerOwner()
@@ -1575,7 +1590,7 @@ PART.Inputs.healthmod_bar_remaining_bars = PART.Inputs.pac_healthbar_remaining_b
 
 local proxy_verbosity = CreateConVar("pac_proxy_verbosity", 1, FCVAR_ARCHIVE, "whether to print info when running pac_proxy")
 net.Receive("pac_proxy", function()
-	local ply = net.ReadEntity()
+	local ply = net.ReadPlayer()
 	local str = net.ReadString()
 
 	local x = net.ReadFloat()
@@ -1732,9 +1747,11 @@ function PART:OnHide()
 		-- cleanup event triggers on hide
 		local part = self:GetTarget()
 		if self.AffectChildren then
-			for _, part in ipairs(self:GetChildren()) do
-				part:SetEventTrigger(self, false)
-				part.proxy_hide = nil
+			local children = self:GetChildren()
+			for i = 1, #children do
+				local child = children[i]
+				child:SetEventTrigger(self, false)
+				child.proxy_hide = nil
 			end
 		elseif part:IsValid() then
 			part:SetEventTrigger(self, false)
@@ -1768,9 +1785,7 @@ local function set(self, part, x, y, z, children)
 
 			-- special case for hide to make it behave like events
 			if self.VariableName == "Hide" then
-
 				if part.proxy_hide ~= b then
-
 					-- in case parts start as hidden
 					if b == false then
 						part:SetKeyValueRecursive("Hide", b)
@@ -1830,8 +1845,9 @@ local function set(self, part, x, y, z, children)
 	end
 
 	if children then
-		for _, part in ipairs(part:GetChildren()) do
-			set(self, part, x, y, z, true)
+		local children_list = part:GetChildren()
+		for i = 1, #children_list do
+			set(self, children_list[i], x, y, z, true)
 		end
 	end
 
@@ -1900,7 +1916,7 @@ local function set(self, part, x, y, z, children)
 end
 
 function PART:RunExpression(ExpressionFunc)
-	if ExpressionFunc==true then
+	if ExpressionFunc == true then
 		return false,self.ExpressionError
 	end
 	return pcall(ExpressionFunc)
@@ -1957,7 +1973,7 @@ end
 function PART:OnThink(to_hide)
 	local part = self:GetTarget()
 	if not part:IsValid() then return end
-	if part.ClassName == 'woohoo' then --why a part hardcode exclusion??
+	if part.ClassName == "woohoo" then --why a part hardcode exclusion??
 		--ok fine I guess it's because it's super expensive, but at least we can be selective about it, the other parameters are safe
 		if self.VariableName == "Resolution" or self.VariableName == "BlurFiltering" and self.touched then
 			return
@@ -1976,9 +1992,9 @@ function PART:OnThink(to_hide)
 	self:CalcVelocity()
 
 	if self.has_extras then --pre-calculate the extra expressions if needed
-		for i=1,5,1 do
+		for i = 1, 5, 1 do
 			if self["Extra" .. i] ~= "" then
-				local ok, x,y,z = self:RunExpression(self["Extra" .. i .. "Func"])
+				local ok, x, y, z = self:RunExpression(self["Extra" .. i .. "Func"])
 				if ok then
 					self["feedback_extra" .. i] = x
 				end
@@ -1995,8 +2011,7 @@ function PART:OnThink(to_hide)
 	end
 
 	if ExpressionFunc then
-
-		local ok, x,y,z = self:RunExpression(ExpressionFunc)
+		local ok, x, y, z = self:RunExpression(ExpressionFunc)
 
 		if not ok then self.error = true
 			if self:GetPlayerOwner() == pac.LocalPlayer and self.Expression ~= self.LastBadExpression then
@@ -2017,7 +2032,6 @@ function PART:OnThink(to_hide)
 		if x and not isnumber(x) then x = 0 end
 		if y and not isnumber(y) then y = 0 end
 		if z and not isnumber(z) then z = 0 end
-
 
 		if self.Additive then
 			if x then
@@ -2064,7 +2078,6 @@ function PART:OnThink(to_hide)
 		end
 
 		if pace and pace.IsActive() then
-
 			local str = ""
 
 			if x then str = str .. math.Round(x, 3) end
@@ -2089,7 +2102,6 @@ function PART:OnThink(to_hide)
 			end
 		end
 	else
-
 		local post_function = self.Functions[self.Function]
 		local input_function = self.Inputs[self.Input]
 

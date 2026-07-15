@@ -7,7 +7,7 @@ local NULL = NULL
 local Vector = Vector
 local util = util
 local SysTime = SysTime
-
+local table_insert = table.insert
 
 local BUILDER, PART = pac.PartTemplate("base")
 
@@ -15,7 +15,7 @@ PART.ClassName = "event"
 
 PART.ThinkTime = 0
 PART.AlwaysThink = true
-PART.Icon = 'icon16/clock.png'
+PART.Icon = "icon16/clock.png"
 
 PART.ImplementsDoubleClickSpecified = true
 
@@ -1118,12 +1118,19 @@ PART.OldEvents = {
 		callback = function(self, ent, extra_radius, require_line_of_sight)
 			extra_radius = extra_radius or 0
 			self.nextcheck = self.nextcheck or CurTime() + 0.1
+
 			if CurTime() > self.nextcheck then
-				for _,v in ipairs(player.GetAll()) do
+				local local_center, min_radius, max_radius
+
+				for _, v in player.Iterator() do
 					if v == ent then continue end
 					local eyetrace = v:GetEyeTrace()
 
-					if util.IntersectRayWithOBB(eyetrace.StartPos, eyetrace.HitPos - eyetrace.StartPos, LocalPlayer():GetPos() + LocalPlayer():OBBCenter(), Angle(0,0,0), Vector(-extra_radius,-extra_radius,-extra_radius), Vector(extra_radius,extra_radius,extra_radius)) then
+					local_center = local_center or pac.LocalPlayer:GetPos() + pac.LocalPlayer:OBBCenter()
+					min_radius = min_radius or Vector(-extra_radius, -extra_radius, -extra_radius)
+					max_radius = max_radius or Vector(extra_radius, extra_radius, extra_radius)
+
+					if util.IntersectRayWithOBB(eyetrace.StartPos, eyetrace.HitPos - eyetrace.StartPos, local_center, angle_zero, min_radius, max_radius) then
 						self.trace_success = true
 						self.trace_success_ply = v
 						self.nextcheck = CurTime() + 0.1
@@ -1454,10 +1461,12 @@ PART.OldEvents = {
 
 			local b = false
 			local ents_hits = ents.FindInBox(mins, maxs)
-			for _,ent2 in pairs(ents_hits) do
+
+			for i = 1, #ents_hits do
+				local ent2 = ents_hits[i]
 				if (ent2 ~= ent and ent2 ~= self:GetRootPart():GetOwner()) and
 					(ent2:IsNPC() or ent2:IsPlayer()) and
-					not ( (no_npc and ent2:IsNPC()) or (no_players and ent2:IsPlayer()) )
+					not ((no_npc and ent2:IsNPC()) or (no_players and ent2:IsPlayer()))
 				then b = true end
 			end
 
@@ -1508,19 +1517,18 @@ PART.OldEvents = {
 
 			radius = math.max(radius + extra_radius + 1, 1)
 
-			local mins = Vector(-x_stretch,-y_stretch,-z_stretch)
-			local maxs = Vector(x_stretch,y_stretch,z_stretch)
+			local mins = Vector(-x_stretch, -y_stretch, -z_stretch)
+			local maxs = Vector(x_stretch, y_stretch, z_stretch)
 			local startpos = ent:WorldSpaceCenter()
 			mins = startpos + mins * radius
 			maxs = startpos + maxs * radius
 
-			local ents_hits = ents.FindInBox(mins, maxs)
 			local b = false
-			for _,ent2 in pairs(ents_hits) do
-				if IsValid(ent2) and (ent2 ~= ent and ent2 ~= self:GetRootPart():GetOwner()) and
-				(ent2:IsNPC() or ent2:IsPlayer())
+			local ents_hits = ents.FindInBox(mins, maxs)
 
-				then
+			for i = 1, #ents_hits do
+				local ent2 = ents_hits[i]
+				if IsValid(ent2) and (ent2 ~= ent and ent2 ~= self:GetRootPart():GetOwner()) and (ent2:IsNPC() or ent2:IsPlayer()) then
 					b = true
 					if ent2:IsNPC() and no_npc then
 						b = false
@@ -2030,7 +2038,7 @@ PART.OldEvents = {
 			ent = try_viewmodel(ent)
 
 			if all_players then
-				for _, ply in ipairs(player.GetAll()) do
+				for _, ply in player.Iterator() do
 					local data = ply.pac_say_event
 
 					if data and self:StringOperator(data.str, find) and data.time + time > pac.RealTime then
@@ -3137,7 +3145,7 @@ do
 
 	--TODO: Rate limit!!!
 	net.Receive("pac.BroadcastPlayerButton", function()
-		local ply = net.ReadEntity()
+		local ply = net.ReadPlayer()
 
 		if not ply:IsValid() then return end
 
@@ -3177,8 +3185,6 @@ do
 
 		--outsource the part pool operations
 		pac.UpdateButtonEvents(ply, key, down)
-
-
 	end)
 
 	PART.OldEvents.button = {
@@ -3194,7 +3200,7 @@ do
 			if ply.pac_buttons then
 				for k,v in pairs(ply.pac_buttons) do
 					if v then
-						table.insert(active, "\"" .. tostring(k) .. "\"")
+						table_insert(active, "\"" .. tostring(k) .. "\"")
 					end
 				end
 			end
@@ -3211,6 +3217,12 @@ do
 			local toggle = toggle or false
 			self.togglestate = self.togglestate or false
 
+			self.toggleimpulsekey = self.toggleimpulsekey or {}
+
+			if self.toggleimpulsekey[button] then
+				self.togglestate = not self.togglestate
+				self.toggleimpulsekey[button] = false
+			end
 			local ply = self:GetPlayerOwner()
 			self.pac_broadcasted_buttons_holduntil = self.pac_broadcasted_buttons_holduntil or {}
 
@@ -3239,11 +3251,9 @@ do
 				else
 					return buttons[button]
 				end
-
 			end
-		end,
+		end
 	}
-
 end
 
 do
@@ -3269,27 +3279,29 @@ do
 
 	function eventMeta:AppendArgument(keyName, keyType, userdata)
 		self.__registeredArguments = self.__registeredArguments or {}
+
 		if not keyType then
-			error('No Type of argument was specified!')
+			error("No Type of argument was specified!")
 		end
 
-		if keyType ~= 'number' and keyType ~= 'string' and keyType ~= 'boolean' then
-			error('Invalid Type of argument was passed. Valids are number, string or boolean')
+		if keyType ~= "number" and keyType ~= "string" and keyType ~= "boolean" then
+			error("Invalid Type of argument was passed. Valids are number, string or boolean")
 		end
 
-		for i, data in ipairs(self.__registeredArguments) do
-			if data[1] == keyName then
-				error('Argument with key ' .. keyName .. ' already exists!')
+		for i = 1, #self.__registeredArguments do
+			if self.__registeredArguments[i][1] == keyName then
+				error("Argument with key " .. keyName .. " already exists!")
 			end
 		end
 
-		self.__registeredArguments = self.__registeredArguments or {}
-		table.insert(self.__registeredArguments, {keyName, keyType, userdata})
+		table_insert(self.__registeredArguments, {keyName, keyType, userdata})
 	end
 
 	function eventMeta:PopArgument(keyName)
-		for i, data in ipairs(self.__registeredArguments) do
-			if data[1] == keyName then
+		self.__registeredArguments = self.__registeredArguments or {}
+
+		for i = 1, #self.__registeredArguments do
+			if self.__registeredArguments[i][1] == keyName then
 				return true, i, table.remove(self.__registeredArguments, i)
 			end
 		end
@@ -3314,9 +3326,10 @@ do
 		end
 
 		local str = part:GetEvent()
+		local args = part:GetArguments()
 
-		if part:GetArguments() ~= "" then
-			local args = part:GetArguments():gsub(";", " or ")
+		if args ~= "" then
+			args = args:gsub(";", " or ")
 
 			if not tonumber(args) then
 				args = [["]] .. args .. [["]]
@@ -3329,8 +3342,8 @@ do
 
 	local eventMetaTable = {
 		__index = function(self, key)
-			if key == '__class' or key == '__classname' then
-				return rawget(getmetatable(self), '__classname')
+			if key == "__class" or key == "__classname" then
+				return rawget(getmetatable(self), "__classname")
 			end
 
 			if rawget(self, key) ~= nil then
@@ -3364,7 +3377,7 @@ do
 	end
 
 	function pac.CreateEvent(nClassName, defArguments)
-		if not nClassName then error('No classname was specified!') end
+		if not nClassName then error("No classname was specified!") end
 
 		local newObj = setmetatable({}, {
 			__index = eventMetaTable.__index,
@@ -3388,7 +3401,7 @@ do
 		local classname = nRegister:GetClass()
 
 		if PART.Events[classname] then
-			pac.Message('WARN: Registering event with already existing classname!: '.. classname)
+			pac.Message("WARN: Registering event with already existing classname!: " .. classname)
 		end
 
 		PART.Events[classname] = nRegister
@@ -3425,7 +3438,7 @@ do
 	end
 
 	timer.Simple(0, function() -- After all addons has loaded
-		hook.Call('PAC3RegisterEvents', nil, pac.CreateEvent, pac.RegisterEvent)
+		hook.Call("PAC3RegisterEvents", nil, pac.CreateEvent, pac.RegisterEvent)
 		pace.TUTORIALS["events"] = PART.Tutorials
 	end)
 end
@@ -3512,13 +3525,13 @@ end
 
 -- DarkRP default events
 do
-	local plyMeta = FindMetaTable('Player')
+	local plyMeta = FindMetaTable("Player")
 	local gamemode = engine.ActiveGamemode
-	local isDarkRP = function() return gamemode() == 'darkrp' end
+	local isDarkRP = function() return gamemode() == "darkrp" end
 
 	local events = {
 		{
-			name = 'is_arrested',
+			name = "is_arrested",
 			args = {},
 			available = function() return plyMeta.isArrested ~= nil end,
 			func = function(self, eventPart, ent)
@@ -3528,7 +3541,7 @@ do
 		},
 
 		{
-			name = 'is_wanted',
+			name = "is_wanted",
 			args = {},
 			available = function() return plyMeta.isWanted ~= nil end,
 			func = function(self, eventPart, ent)
@@ -3538,7 +3551,7 @@ do
 		},
 
 		{
-			name = 'is_police',
+			name = "is_police",
 			args = {},
 			available = function() return plyMeta.isCP ~= nil end,
 			func = function(self, eventPart, ent)
@@ -3548,17 +3561,17 @@ do
 		},
 
 		{
-			name = 'wanted_reason',
-			args = {{'find', 'string'}},
+			name = "wanted_reason",
+			args = {{"find", "string"}},
 			available = function() return plyMeta.getWantedReason ~= nil and plyMeta.isWanted ~= nil end,
 			func = function(self, eventPart, ent, find)
 				ent = try_viewmodel(ent)
-				return eventPart:StringOperator(ent.isWanted and ent.getWantedReason and ent:isWanted() and ent:getWantedReason() or '', find)
+				return eventPart:StringOperator(ent.isWanted and ent.getWantedReason and ent:isWanted() and ent:getWantedReason() or "", find)
 			end
 		},
 
 		{
-			name = 'is_cook',
+			name = "is_cook",
 			args = {},
 			available = function() return plyMeta.isCook ~= nil end,
 			func = function(self, eventPart, ent)
@@ -3568,7 +3581,7 @@ do
 		},
 
 		{
-			name = 'is_hitman',
+			name = "is_hitman",
 			args = {},
 			available = function() return plyMeta.isHitman ~= nil end,
 			func = function(self, eventPart, ent)
@@ -3578,7 +3591,7 @@ do
 		},
 
 		{
-			name = 'has_hit',
+			name = "has_hit",
 			args = {},
 			available = function() return plyMeta.hasHit ~= nil end,
 			func = function(self, eventPart, ent)
@@ -3588,8 +3601,8 @@ do
 		},
 
 		{
-			name = 'hit_price',
-			args = {{'amount', 'number'}},
+			name = "hit_price",
+			args = {{"amount", "number"}},
 			available = function() return plyMeta.getHitPrice ~= nil end,
 			func = function(self, eventPart, ent, amount)
 				ent = try_viewmodel(ent)
@@ -3666,8 +3679,9 @@ function PART:IsHiddenBySomethingElse(only_self)
 
 	if only_self then return false end
 
-	for _, parent in ipairs(self:GetParentList()) do
-		if is_hidden_by_something_else(parent, self) then
+	local parents = self:GetParentList()
+	for i = 1, #parents do
+		if is_hidden_by_something_else(parents[i], self) then
 			return true
 		end
 	end
@@ -3772,7 +3786,9 @@ function PART:SetAffectChildrenOnly(b)
 				if parent:IsValid() then
 					parent:SetEventTrigger(self, b)
 
-					for _, child in ipairs(self:GetChildren()) do
+					local children = self:GetChildren()
+					for i = 1, #children do
+						local child = children[i]
 						if child.active_events[self] then
 							child.active_events[self] = nil
 							child.active_events_ref_count = child.active_events_ref_count - 1
@@ -3782,21 +3798,21 @@ function PART:SetAffectChildrenOnly(b)
 				end
 
 			else
-				for _, child in ipairs(self:GetChildren()) do
-					child:SetEventTrigger(self, b)
-				end
-				if self:GetParent():IsValid() then
-					local parent = self:GetParent()
-					if parent.active_events[self] then
-						parent.active_events[self] = nil
-						parent.active_events_ref_count = parent.active_events_ref_count - 1
-						parent:CallRecursive("CalcShowHide", false)
-					end
+				local children = self:GetChildren()
+				for i = 1, #children do
+					children[i]:SetEventTrigger(self, b)
 				end
 
+				local parent = self:GetParent()
+				if parent:IsValid() and parent.active_events[self] then
+					parent.active_events[self] = nil
+					parent.active_events_ref_count = parent.active_events_ref_count - 1
+					parent:CallRecursive("CalcShowHide", false)
+				end
 			end
 		end
 	end
+
 	self.AffectChildrenOnly = b
 end
 
@@ -3809,6 +3825,7 @@ function PART:OnRemove()
 			parent:CalcShowHide()
 		end
 	end
+
 	if IsValid(self.DestinationPart) then
 		self.DestinationPart.active_events[self] = nil
 		self.DestinationPart.active_events_ref_count = self.DestinationPart.active_events_ref_count - 1
@@ -3839,14 +3856,18 @@ function PART:TriggerEvent(b)
 	end
 
 	if self.AffectChildrenOnly then
-		for _, child in ipairs(self:GetChildren()) do
-			child:SetEventTrigger(self, b)
+		local children = self:GetChildren()
+		for i = 1, #children do
+			children[i]:SetEventTrigger(self, b)
 		end
 	else
 		if not single_targetpart and not self.MultiTargetPart then --normal parent mode should only happen if nothing is set
 			local parent = self:GetParent()
 			if parent:IsValid() then
 				parent:SetEventTrigger(self, b)
+			end
+		end
+	end
 			end
 		end
 	end
@@ -3914,9 +3935,10 @@ function PART:GetParsedArgumentsForObject(eventObject)
 	end
 
 	local args = line:Split("@@")
+	local event_args = eventObject:GetArguments()
 
-	for i, argData in pairs(eventObject:GetArguments()) do
-		local typ = argData[2]
+	for i = 1, #event_args do
+		local typ = event_args[i][2]
 
 		if args[i] ~= nil then
 			if typ == "boolean" then
@@ -4115,7 +4137,7 @@ pac.camera_linked_command_events = {}
 local initially_check_camera_linked_command_events = true
 
 net.Receive("pac_event", function(umr)
-	local ply = net.ReadEntity()
+	local ply = net.ReadPlayer()
 	local str = net.ReadString()
 	local on = net.ReadInt(8)
 
@@ -4403,14 +4425,14 @@ do
 
 		for k,v in pairs(available) do
 			if uncolored_events[k] then
-				table.insert(uncolored_sublist,available[k])
+				table_insert(uncolored_sublist,available[k])
 			end
 		end
 
 		table.sort(uncolored_sublist, function(a, b) return a.trigger < b.trigger end)
 
 		for k,v in ipairs(uncolored_sublist) do
-			table.insert(list, v)
+			table_insert(list, v)
 		end
 
 		--[[legacy behavior
@@ -4418,7 +4440,7 @@ do
 			for k,v in pairs(available) do
 				if k == names[k].name then
 					v.trigger = k
-					table.insert(list, v)
+					table_insert(list, v)
 				end
 			end
 
