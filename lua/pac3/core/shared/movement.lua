@@ -122,6 +122,7 @@ local function badMovetype(ply)
 end
 
 local frictionConvar = GetConVar("sv_friction")
+local gravityConvar = GetConVar("sv_gravity")
 local lasttime = 0
 pac.AddHook("Move", "custom_movement", function(ply, mv)
 	lasttime = SysTime()
@@ -180,7 +181,15 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 		ply:SetMoveType(MOVETYPE_WALK)
 	end
 
-	ply:SetGravity(0.00000000000000001)
+	local sv_grav = gravityConvar:GetFloat()
+	local use_engine_gravity = (self.Gravity.x == 0 and self.Gravity.y == 0 and self.Gravity.z <= 0 and sv_grav > 0)
+	if use_engine_gravity then
+		local g = -self.Gravity.z / sv_grav
+		if g == 0 then g = 0.00000000000000001 end
+		ply:SetGravity(g)
+	else
+		ply:SetGravity(0.00000000000000001)
+	end
 
 	local on_ground = ply:IsOnGround()
 
@@ -310,7 +319,9 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 			vel.x = vel.x * hfric_mult
 			vel.y = vel.y * hfric_mult
 			vel.z = vel.z * friction_mult
-			vel = vel + self.Gravity * 0.015
+			if not use_engine_gravity then
+				vel = vel + self.Gravity * 0.015
+			end
 
 			speed = speed:GetNormalized() * math.Clamp(speed:Length(), 0, self.MaxAirSpeed) --base driver speed but not beyond max?
 			--why should the base driver speed depend on friction?
@@ -346,11 +357,13 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 		--vel = vel + (special_surf_fric * speed * FrameTime()*(75.77*(-friction+1)))
 		vel = vel + (special_surf_fric * speed * math.min(FrameTime(),0.3)*(75.77*(-friction+1)))
 
-		local grav = self.Gravity * 0.015
-		if grav.z < 0 then
-			vel = vel + Vector(grav.x, grav.y, 0)
-		else
-			vel = vel + grav
+		if not use_engine_gravity then
+			local grav = self.Gravity * 0.015
+			if grav.z < 0 then
+				vel = vel + Vector(grav.x, grav.y, 0)
+			else
+				vel = vel + grav
+			end
 		end
 	end
 
