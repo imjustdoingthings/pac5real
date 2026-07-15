@@ -354,12 +354,7 @@ pac.AddHook("Move", "custom_movement", function(ply, mv)
 		--vel = vel + (special_surf_fric * speed * FrameTime()*(75.77*(-friction+1)))
 		vel = vel + (special_surf_fric * speed * math.min(FrameTime(),0.3)*(75.77*(-friction+1)))
 
-		local grav = self.Gravity * 0.015
-		if grav.z < 0 then
-			vel = vel + Vector(grav.x, grav.y, 0)
-		else
-			vel = vel + grav
-		end
+		vel = vel + self.Gravity * 0.015
 	end
 
 	if self.FinEfficiency > 0 then -- fin
