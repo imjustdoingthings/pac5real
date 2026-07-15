@@ -1,6 +1,26 @@
-local L = pace.LanguageString
+local pac_editor_scale = CreateClientConVar("pac_editor_scale","1", true, false)
+cvars.AddChangeCallback("pac_editor_scale", function(cmd, old, new)
+	timer.Simple(0, function() pace.RefreshTree(true) end)
+end)
 
-local pac_editor_scale = CreateClientConVar("pac_editor_scale", "1", true, false)
+local enable_model_icons = CreateClientConVar("pac_editor_model_icons", "1")
+
+local lazy = CreateClientConVar("pac_tree_lazymode","1", true, false)
+local fade_dormants = CreateClientConVar("pac_tree_lazymode_fadeout_dormant_nodes", "0", true, false)
+
+cvars.AddChangeCallback("pac_tree_lazymode", function(cmd, old, new)
+	if not tobool(new) then
+		for i,v in pairs(pac.GetLocalParts()) do
+			v.no_populate = false
+			v.dormant_node = false
+		end
+	end
+	timer.Simple(0.5, function() pace.RefreshTree(true) end)
+end)
+
+local print_updatetimes = CreateClientConVar("pac_tree_log_refreshes","0", true, false)
+
+local L = pace.LanguageString
 
 local PANEL = {}
 
@@ -14,6 +34,7 @@ function PANEL:Init()
 	self:SetIndentSize(10)
 
 	self.parts = {}
+	self.fakeparts = {}
 
 	self:Populate()
 
@@ -153,7 +174,8 @@ do
 				end
 			end
 
-			if (part.ClassName == "proxy" or part.ClassName == "event") and part.Name == "" then
+			--always updating from part:GetNiceName()
+			if (part.ClassName == "proxy" or part.ClassName == "event" or part.ClassName == "health_modifier" or part.ClassName == "particles") and part.Name == "" then
 				node:SetText(pace.pac_show_uniqueid:GetBool() and string.format("%s (%s)", part:GetName(), part:GetPrintUniqueID()) or part:GetName())
 			end
 
@@ -161,8 +183,8 @@ do
 				if not node.Icon.event_icon then
 					local pnl = vgui.Create("DImage", node.Icon)
 					pnl:SetImage("icon16/clock_red.png")
-					pnl:SetSize(8 * (1 + 0.5 * (pac_editor_scale:GetFloat() - 1)), 8 * (1 + 0.5 * (pac_editor_scale:GetFloat() - 1)))
-					pnl:SetPos(8 * (1 + 0.5 * (pac_editor_scale:GetFloat() - 1)), 8 * (1 + 0.5 * (pac_editor_scale:GetFloat() - 1)))
+					pnl:SetSize(8*(1 + 0.5*(pac_editor_scale:GetFloat()-1)), 8*(1 + 0.5*(pac_editor_scale:GetFloat()-1)))
+					pnl:SetPos(8*(1 + 0.5*(pac_editor_scale:GetFloat()-1)), 8*(1 + 0.5*(pac_editor_scale:GetFloat()-1)))
 					pnl:SetVisible(false)
 					node.Icon.event_icon = pnl
 				end
@@ -261,6 +283,101 @@ do
 	end
 end
 
+do
+	function pace.PartFocus(part)
+		if part.focused then -- toggle off
+			for i,v in pairs(pac.GetLocalParts()) do
+				v.no_populate = false
+				v.dormant_node = false
+				v.focused = false
+			end
+			part.focused = false
+			timer.Simple(0, function() pace.RefreshTree(true) end)
+			return
+		end
+
+		local node = part.pace_tree_node
+		local parts = {}
+		local children = {}
+		for i,v in pairs(part:GetChildrenList()) do
+			table.insert(children, v)
+		end
+
+		local function find(prt)
+			table.insert(parts, prt)
+			local parent = prt:GetParent()
+			if parent:IsValid() then
+				find(parent)
+			end
+		end
+
+		find(part)
+
+		for i,v in pairs(pac.GetLocalParts()) do
+			if table.HasValue(parts, v) then
+				v.no_populate = false
+				v.dormant_node = false
+			elseif table.HasValue(children, v) then
+				v.no_populate = false
+				v.dormant_node = false
+			else
+				v.no_populate = true
+				v.dormant_node = true
+			end
+			v.focused = false
+			end
+		end
+		part.focused = true
+
+		local parent = part
+		while parent do
+			parts[parent] = nil
+			parent = parent.Parent
+		end
+		for i,v in pairs(parts) do
+			v.no_populate = true
+		end
+		part.no_populate = false
+		part.dormant_node = false
+		part.dormant_node_keepchildren = false
+		pace.RefreshTree(true)
+	end
+
+	function pace.PartFakeRoot(part)
+		local node = part.pace_tree_node
+		pace.fake_root_nodes = pace.fake_root_nodes or {}
+		if part.fake_root then -- toggle off
+			pace.fake_root_nodes[part] = nil
+			part.fake_root = false
+			part.no_populate_because_of_fakenode = nil
+			if IsValid(node) then node:Remove() end
+			for i,v in pairs(part:GetChildrenList()) do
+				v.fake_root_parent = false
+			end
+			pace.RefreshTree(true)
+			return
+		end
+
+		pace.fake_root_nodes[part] = part
+		part.no_populate = false
+		part.no_populate_because_of_fakenode = true
+		part.dormant_node = false
+		part.dormant_node_keepchildren = false
+		part.fake_root = true
+		if IsValid(node) then
+			node:Remove()
+		end
+		for i,v in pairs(part:GetChildrenList()) do
+			v.fake_root_parent = true
+		end
+		
+		pace.RefreshTree(true)
+	end
+end
+
+
+
+>>>>>>> pac3develop/develop
 function PANEL:OnMouseReleased(mc)
 	if mc == MOUSE_RIGHT then
 		pace.Call("PartMenu")
@@ -348,11 +465,46 @@ local function install_drag(node)
 	end
 end
 
-local function install_expand(node)
+local function install_expand(node, populate, alt, provided_part)
+	if provided_part then
+		if provided_part:HasChildren() then
+			populate:PopulateParts(node, provided_part:GetChildren(), true, true)
+		end
+	elseif populate and not alt then
+		if node.part:HasChildren() then
+			populate:PopulateParts(node, node.part:GetChildren(), true, true)
+		end
+	end
+	if node.part and not node.part.dormant_node_keepchildren then
+		if node.part:HasChildren() then
+			node:SetForceShowExpander(true)
+		end
+	end
 	local old = node.SetExpanded
 	node.SetExpanded = function(self, b, ...)
 		if self.part and self.part:IsValid() then
 			self.part:SetEditorExpand(b)
+			if b and populate and self.force_expandable and not self.populated then
+				self.part.dormant_node = false
+				local stime = SysTime()
+				populate:PopulateParts(self, self.part:GetChildren(), true, true)
+
+				if
+					enable_model_icons:GetBool() and
+					self.part.is_model_part and
+					self.part.GetModel and
+					self.part:GetOwner():IsValid()
+				then
+					self:SetModel(self.part:GetOwner():GetModel(), self.part.Icon)
+				elseif isstring(self.part.Icon) then
+					self.Icon:SetImage(self.part.Icon)
+				end
+				if self.Icon and self.Icon.SetImageColor then self.Icon:SetImageColor(Color(255,255,255,255)) end
+
+				if print_updatetimes:GetBool() then
+					pace.FlashNotification("populated " .. tostring(node.part) .. " in " .. math.Round((SysTime() - stime)*1000,2) .. " milliseconds")
+				end
+			end
 			return old(self, b, ...)
 		end
 	end
@@ -367,14 +519,14 @@ local function install_expand(node)
 			menu:MakePopup()
 
 			menu:AddOption(L"collapse all", function()
-				node.part:CallRecursive('SetEditorExpand', false)
+				node.part:CallRecursive("SetEditorExpand", false)
 				pace.RefreshTree(true)
-			end):SetImage('icon16/arrow_in.png')
+			end):SetImage("icon16/arrow_in.png")
 
 			menu:AddOption(L"expand all", function()
-				node.part:CallRecursive('SetEditorExpand', true)
+				node.part:CallRecursive("SetEditorExpand", true)
 				pace.RefreshTree(true)
-			end):SetImage('icon16/arrow_down.png')
+			end):SetImage("icon16/arrow_down.png")
 
 			menu:AddSpacer()
 
@@ -394,6 +546,80 @@ local function install_expand(node)
 				menu2:AddOption("use specific actions when available", function() RunConsoleCommand("pac_doubleclick_action_specified", "1") end):SetImage('icon16/cog.png')
 				menu2:AddOption("use even more specific actions (events)", function() RunConsoleCommand("pac_doubleclick_action_specified", "2") end):SetImage('icon16/clock.png')
 
+			local menu2, pnl = menu:AddSubMenu("node management")
+			pnl:SetIcon("icon16/chart_organisation.png")
+
+			if pace.fake_root_nodes then
+				menu2:AddOption(L"clear node", function()
+					node:Remove()
+				end):SetImage("icon16/world_delete.png")
+				menu2:AddOption(L"reset fake root nodes", function()
+					for i,v in pairs(pace.fake_root_nodes) do
+						v.fake_root_node:Remove()
+						v.fake_root = false
+						v.fake_root_node = nil
+						node.part.no_populate_because_of_fakenode = nil
+					end
+					pace.fake_root_nodes = nil 
+					pace.RefreshTree(true)
+				end):SetImage("icon16/bin_closed.png")
+			end
+			if node.part.fake_root then
+				menu2:AddOption(L"clear this fake root node", function()
+					pace.fake_root_nodes[node.part] = nil
+					node.part.fake_root = false
+					node.part.no_populate_because_of_fakenode = nil
+					node:Remove()
+				end):SetImage("icon16/world_delete.png")
+			else
+				menu2:AddOption(L"move up to a fake root node", function()
+					pace.PartFakeRoot(node.part)
+				end):SetImage("icon16/arrow_up.png")
+			end
+			if node.part.dormant_node then
+				menu2:AddOption(L"reload nodes", function()
+					if lazy:GetBool() then
+						node.part:SetEditorExpand(true)
+					end
+					node.part.dormant_node = false
+					pace.RefreshTree(true)
+				end):SetImage("icon16/collision_on.png")
+			else
+				menu2:AddOption(L"de-load nodes (collapse)", function()
+					if lazy:GetBool() then
+						for i,v in ipairs(node.part:GetChildren()) do
+							v.dormant_node = true
+							v:SetEditorExpand(false)
+						end
+						node.part:SetEditorExpand(false)
+					end
+					node.part.dormant_node = true
+					node.part.dormant_node_keepchildren = false
+					pace.RefreshTree(true)
+				end):SetImage("icon16/bullet_toggle_minus.png")
+				menu2:AddOption(L"de-load nodes (keep immediate children only)", function()
+					if lazy:GetBool() then
+						for i,v in ipairs(node.part:GetChildren()) do
+							v.dormant_node = true
+							v:SetEditorExpand(false)
+						end
+					end
+					node.part.dormant_node = true
+					node.part.dormant_node_keepchildren = true
+					pace.RefreshTree(true)
+				end):SetImage("icon16/chart_organisation_delete.png")
+			end
+			menu2:AddOption(L"focus on this part", function()
+				pace.PartFocus(node.part)
+			end):SetImage("icon16/magnifier_zoom_in.png")
+			
+			menu2:AddOption(L"re-show hidden nodes", function()
+				for i,v in pairs(pac.GetLocalParts()) do
+					v.no_populate = false
+					v.dormant_node = false
+				end
+				pace.RefreshTree(true)
+			end):SetImage("icon16/application_side_tree.png")
 		end
 	end
 end
@@ -467,9 +693,12 @@ function PANEL:AddNode(...)
 	return node
 end
 
-local enable_model_icons = CreateClientConVar("pac_editor_model_icons", "1")
-
-function PANEL:PopulateParts(node, parts, children)
+function PANEL:PopulateParts(node, parts, children, dormant)
+	self.populated = true
+	if node.part and node.part.no_populate and not node.part.no_populate_because_of_fakenode and not node.part.fake_root_parent then node:Remove() return end
+	if pace.fake_root_nodes then
+		if pace.fake_root_nodes[node.part] and node ~= node.part.fake_root_node and not node.part.fake_root_parent then return end
+	end
 	fix_folder_funcs(node)
 
 	local temp = {}
@@ -501,6 +730,7 @@ function PANEL:PopulateParts(node, parts, children)
 		local key = part.Id
 
 		if not part:GetShowInEditor() then goto CONTINUE end
+		if part.no_populate then continue end
 
 		if not part:HasParent() or children then
 			local part_node
@@ -553,19 +783,58 @@ function PANEL:PopulateParts(node, parts, children)
 			end
 			part_node.Icon:SetSize(16 * pac_editor_scale:GetFloat(), 16 * pac_editor_scale:GetFloat())
 
-			self:PopulateParts(part_node, part:GetChildren(), true)
+			if part.dormant_node then
+				if part.Notes == "" then
+					part_node:SetTooltip("[".. part.ClassName .. "] dormant <" .. #part:GetChildrenList() .." children>")
+				end
+				if part_node.Icon and part_node.Icon.SetImageColor and fade_dormants:GetBool() then part_node.Icon:SetImageColor(Color(255,255,255,200)) end
+			end
+
+			if lazy:GetBool() and not pace.tree_search_open then
+				if part.EditorExpand then
+					if not dormant then
+						self:PopulateParts(part_node, part:GetChildren(), true, true)
+					else
+						install_expand(part_node, self)
+					end
+				else
+					if part:HasChildren() then
+						if dormant then part.dormant_node = true end
+						part_node:SetForceShowExpander(true)
+						part_node.force_expandable = true
+						install_expand(part_node, self, true)
+					end
+				end
+			else
+				if (not part.dormant_node) and (not dormant) then
+					self:PopulateParts(part_node, part:GetChildren(), true)
+				elseif not dormant then
+					if part.dormant_node_keepchildren then
+						install_expand(part_node, self)
+					else
+						install_expand(part_node)
+					end
+				end
+			end
+			
 
 			if part.newly_created then
 				part_node:SetSelected(true)
+				local parent = part
+				while IsValid(parent.Parent) do
+					if parent.pace_tree_node and parent.pace_tree_node.SetExpanded and self.incoming_pop_node_parent ~= self then
+						self.incoming_pop_node_parent = self --prevents an occasional stack overflow
+						parent.pace_tree_node:SetExpanded(true)
+					end
+					parent = parent.Parent
+				end
 
-				local function expand(part)
+				--[[local function expand(part)
 					if part:HasParent() and part.Parent.pace_tree_node then
 						part.Parent.pace_tree_node:SetExpanded(true)
 						expand(part.Parent)
 					end
-				end
-
-				expand(part)
+				end]]
 
 				part_node:SetSelected(true)
 				part.newly_created = nil
@@ -606,13 +875,58 @@ function PANEL:Populate(reset)
 		end
 	end
 
+	for key, node in pairs(self.fakeparts) do
+		node:Remove()
+		self.fakeparts[key] = nil
+	end
 	--[[self.m_pSelectedItem = nil
 
 	for key, node in pairs(self:GetItems()) do
 		node:Remove()
 	end]]
+	if pace.fake_root_nodes then
+		for i,part in pairs(pace.fake_root_nodes) do
+			local part_node = self:AddNode(pace.pac_show_uniqueid:GetBool() and string.format("%s (%s)", part:GetName(), part:GetPrintUniqueID()) or part:GetName())
 
-	self:PopulateParts(self, pac.GetLocalParts())
+			part.fake_root_node = part_node
+			self.fakeparts[part] = part_node
+			fix_folder_funcs(part_node)
+
+			if part.Description then part_node:SetTooltip(L(part.Description)) end --ok but have we ever had any Description other than "right click to add parts"?
+			if part.Notes ~= "" then part_node.Label:SetTooltip(part.Notes) end --idk if anyone uses Notes but tooltips are good if they have something on them. It can easily be overridden by other code anyway.
+
+			part_node.part = part
+
+			part_node.DoClick = function()
+				if not part:IsValid() then return end
+				pace.Call("PartSelected", part)
+
+				--part_node.add_button:SetVisible(true)
+
+				return true
+			end
+
+			part_node.DoRightClick = function()
+				if not part:IsValid() then return end
+
+				pace.Call("PartMenu", part)
+				pace.Call("PartSelected", part)
+				part_node:InternalDoClick()
+				return true
+			end
+
+			part_node.Icon:SetImage("icon16/table_relationship.png")
+			part_node.Icon:SetSize(16 * editor_scale:GetFloat(),16 * editor_scale:GetFloat())
+			install_expand(part_node, self, nil, part)
+			self:PopulateParts(part_node, {part})
+			part_node:SetExpanded(part:GetEditorExpand())
+
+		end
+		self:PopulateParts(self, pac.GetLocalParts())
+	else
+		self:PopulateParts(self, pac.GetLocalParts())
+	end
+	
 
 	self:InvalidateLayout()
 end
@@ -659,6 +973,19 @@ pac.AddHook("pace_OnVariableChanged", "pace_create_tree_nodes", function(part, k
 	end
 end)
 
+timer.Create("pac_fix_empty_editor", 2, 0, function()
+	if pace.tree then
+		if pace.tree.parts then
+			local i, node = next(pace.tree.parts) --get some node or something
+			if node then
+				if not node:IsValid() then
+					pace.RefreshTree()
+				end
+			end
+		end
+	end
+end)
+
 pace.allowed_event_refresh = 0
 
 function pace.RefreshEvents()
@@ -699,10 +1026,12 @@ function pace.RefreshTree(reset)
 	if pace.tree:IsValid() then
 		timer.Create("pace_refresh_tree", 0.01, 1, function()
 			if pace.tree:IsValid() then
+				local stime = SysTime()
 				pace.tree:Populate(reset)
 				pace.tree.RootNode:SetExpanded(true, true) -- why do I have to do this?
 
 				pace.TrySelectPart()
+				if print_updatetimes:GetBool() then pace.FlashNotification("refreshed the tree in " .. math.Round((SysTime()-stime)*1000, 2) .. " ms") end
 			end
 		end)
 	end

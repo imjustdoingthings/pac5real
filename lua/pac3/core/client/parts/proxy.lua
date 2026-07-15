@@ -107,8 +107,9 @@ function PART:GetOrFindCachedPart(uid_or_name)
 	self.erroring_cached_parts = {}
 	self.found_cached_parts = self.found_cached_parts or {}
 	if self.found_cached_parts[uid_or_name] then self.erroring_cached_parts[uid_or_name] = nil return self.found_cached_parts[uid_or_name] end
-	if self.erroring_cached_parts[uid_or_name] then return end
-	if self.bad_uid_search and self.bad_uid_search > 250 then return end
+	if self.bad_uid_search and self.bad_uid_search > 250 then
+		return
+	end
 
 	local owner = self:GetPlayerOwner()
 	part = pac.GetPartFromUniqueID(pac.Hash(owner), uid_or_name) or pac.FindPartByPartialUniqueID(pac.Hash(owner), uid_or_name)
@@ -122,10 +123,11 @@ function PART:GetOrFindCachedPart(uid_or_name)
 		self.erroring_cached_parts[uid_or_name] = true
 		self.bad_uid_search = self.bad_uid_search or 0
 		self.bad_uid_search = self.bad_uid_search + 1
-		if self:GetPlayerOwner() == LocalPlayer() and not pace.still_loading_wearing then
+		if self:GetPlayerOwner() == LocalPlayer() and not pace.still_loading_wearing and self.bad_uid_search > 2 then
 			pace.FlashNotification("performance warning! " .. tostring(self) .. " keeps searching for parts not finding anything! " .. tostring(uid_or_name) .. " may be unused!")
 		end
 	else
+		self.bad_uid_search = nil
 		self.found_cached_parts[uid_or_name] = part
 		return part
 	end
@@ -457,7 +459,7 @@ PART.Inputs.sample_and_hold = function(self, seed, duration, min, max, ease)
 	self.samplehold = self.samplehold or {}
 	self.samplehold_prev = self.samplehold_prev or {}
 	self.samplehold_duration = self.samplehold_duration or {}
-	self.samplehold_prev[seed] = self.samplehold_prev[seed] or {value = min, refresh = CurTime()}
+	self.samplehold_prev[seed] = self.samplehold_prev[seed] or {value = min + math.random()*(max-min), refresh = CurTime()}
 	self.samplehold[seed] = self.samplehold[seed] or {value = min + math.random()*(max-min), refresh = CurTime() + duration}
 
 	self.samplehold_duration[seed] = self.samplehold_duration[seed] or CurTime()
@@ -745,6 +747,7 @@ PART.Inputs.ezfade = function(self, speed, starttime, endtime)
 	starttime = starttime or 0
 	self.time = self.time or pac.RealTime
 	local timeex = pac.RealTime - self.time
+	if self.timeex_override then timeex = self.timeex_override end
 	local start_offset_constant = -starttime * speed
 	local result = 0
 
@@ -777,6 +780,7 @@ PART.Inputs.ezfade_4pt = function(self, in_starttime, in_endtime, out_starttime,
 
 	self.time = self.time or pac.RealTime
 	local timeex = pac.RealTime - self.time
+	if self.timeex_override then timeex = self.timeex_override end
 
 	if in_starttime == in_endtime then
 		if timeex < in_starttime then
@@ -1143,6 +1147,7 @@ PART.Inputs.pose_parameter_true = function(self, name)
 	local owner = get_owner(self)
 	if owner:IsValid() then
 		local min, max = owner:GetPoseParameterRange(owner:LookupPoseParameter(name))
+		if not min or not max then return 0 end
 		return min + (max - min)*(owner:GetPoseParameter(name))
 	end
 	return 0
@@ -1467,6 +1472,32 @@ do
 	end
 end
 
+PART.Inputs.dot_forward = function(self)
+	local part = get_owner(self)
+
+	if part:IsValid() then
+		local ang = part:IsPlayer() and part:EyeAngles() or part:GetAngles()
+		local dir = pac.EyePos - part:EyePos()
+		dir:Normalize()
+		return dir:Dot(ang:Forward())
+	end
+
+	return 0
+end
+
+PART.Inputs.dot_right = function(self)
+	local part = get_owner(self)
+
+	if part:IsValid() then
+		local ang = part:IsPlayer() and part:EyeAngles() or part:GetAngles()
+		local dir = pac.EyePos - part:EyePos()
+		dir:Normalize()
+		return dir:Dot(ang:Right())
+	end
+
+	return 0
+end
+
 PART.Inputs.flat_dot_forward = function(self)
 	local part = get_owner(self)
 
@@ -1587,6 +1618,33 @@ end
 
 PART.Inputs.healthmod_bar_remaining_bars = PART.Inputs.pac_healthbar_remaining_bars
 
+PART.Inputs.text_length_raw = function(self, uid)
+	local part = self:GetOrFindCachedPart(uid)
+	if not IsValid(part) then return 0 end
+	if part.ClassName ~= "text" then return 0 end
+	return part.DisplayTextLengthPreTruncate or 0
+end
+PART.Inputs.text_length_raw_nospaces = function(self, uid)
+	local part = self:GetOrFindCachedPart(uid)
+	if not IsValid(part) then return 0 end
+	if part.ClassName ~= "text" then return 0 end
+	if not part.DisplayTextPreTruncate then return 0 end
+	local chars = 0
+	for c=1,#part.DisplayTextPreTruncate do
+		if part.DisplayTextPreTruncate[c] ~= " " then
+			chars = chars + 1
+		end
+	end
+	return chars
+end
+PART.Inputs.text_length_truncated = function(self, uid)
+	local part = self:GetOrFindCachedPart(uid)
+	if not IsValid(part) then return 0 end
+	if part.ClassName ~= "text" then return 0 end
+	return part.DisplayTextLengthPostTruncate or 0
+end
+
+
 
 local proxy_verbosity = CreateConVar("pac_proxy_verbosity", 1, FCVAR_ARCHIVE, "whether to print info when running pac_proxy")
 net.Receive("pac_proxy", function()
@@ -1702,31 +1760,43 @@ function PART:SetExpression(str, slot)
 end
 
 function PART:SetExpressionOnHide(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.ExpressionOnHide = str
 	self:SetExpression(str, 0)
 end
 
 function PART:SetExtra1(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.Extra1 = str
 	self:SetExpression(str, 1)
 end
 
 function PART:SetExtra2(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.Extra2 = str
 	self:SetExpression(str, 2)
 end
 
 function PART:SetExtra3(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.Extra3 = str
 	self:SetExpression(str, 3)
 end
 
 function PART:SetExtra4(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.Extra4 = str
 	self:SetExpression(str, 4)
 end
 
 function PART:SetExtra5(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.Extra5 = str
 	self:SetExpression(str, 5)
 end
@@ -1970,7 +2040,24 @@ function PART:OnRemove()
 	pac.RemoveHook("HUDPaint", "proxy" .. self.UniqueID)
 end
 
+
+local last_part
+pac.AddHook("pace_OnPartSelected", "warn_if_empty_proxy_variablename", function(part)
+	if part == last_part then return end
+	last_part = pace.current_part
+	self = last_part
+	if self.ClassName == "proxy" then
+		--foolproofing: scream at the user if they didn't set a variable name and there's no extra expressions ready to be used
+		if self.VariableName == "" and self.Extra1 == "" and self.Extra2 == "" and self.Extra3 == "" and self.Extra4 == "" and self.Extra5 == "" then
+			pace.FlashNotification("An edited proxy still has no variable name! The proxy won't work until it knows where to send the math!")
+			self:SetWarning("You forgot to set a variable name! The proxy won't work until it knows where to send the math!")
+		elseif self.VariableName ~= "" and not self.error and not self.errors_override then self:SetWarning() end
+	end
+	last_part = part
+end)
+
 function PART:OnThink(to_hide)
+	local playerowner = self:GetPlayerOwner() == pac.LocalPlayer
 	local part = self:GetTarget()
 	if not part:IsValid() then return end
 	if part.ClassName == "woohoo" then --why a part hardcode exclusion??
@@ -1979,15 +2066,6 @@ function PART:OnThink(to_hide)
 			return
 		end
 	end
-
-	--foolproofing: scream at the user if they didn't set a variable name and there's no extra expressions ready to be used
-	if self == pace.current_part then self.touched = true end
-	if self ~= pace.current_part and self.VariableName == "" and self.touched and self.Extra1 == ""	and self.Extra2 == "" and self.Extra3 == "" and self.Extra4 == "" and self.Extra5 == "" then
-		self:AttachEditorPopup("You forgot to set a variable name! The proxy won't work until it knows where to send the math!", true)
-		pace.FlashNotification("An edited proxy still has no variable name! The proxy won't work until it knows where to send the math!")
-		self:SetWarning("You forgot to set a variable name! The proxy won't work until it knows where to send the math!")
-		self.touched = false
-	elseif self.VariableName ~= "" and not self.error and not self.errors_override then self:SetWarning() end
 
 	self:CalcVelocity()
 
@@ -2014,7 +2092,7 @@ function PART:OnThink(to_hide)
 		local ok, x, y, z = self:RunExpression(ExpressionFunc)
 
 		if not ok then self.error = true
-			if self:GetPlayerOwner() == pac.LocalPlayer and self.Expression ~= self.LastBadExpression then
+			if playerowner and self.Expression ~= self.LastBadExpression then
 				--don't spam the chat every time we type a single character in the luapad
 				if not (pace.ActiveSpecialPanel and pace.ActiveSpecialPanel.luapad) then
 					chat.AddText(Color(255,180,180),"============\n[ERR] PAC Proxy error on "..tostring(self)..":\n"..x.."\n============\n")
@@ -2077,7 +2155,10 @@ function PART:OnThink(to_hide)
 			end
 		end
 
-		if pace and pace.IsActive() then
+		if not playerowner and not self.PreviewOutput then
+			if not self.pace_tree_node then return end
+			if not self.pace_tree_node:IsValid() then return end
+		else
 			local str = ""
 
 			if x then str = str .. math.Round(x, 3) end
@@ -2165,7 +2246,7 @@ function PART:OnThink(to_hide)
 		end
 		self:SetError(error_msg) self.error = true
 	end
-	if self:GetPlayerOwner() == pac.LocalPlayer then
+	if playerowner then
 		if self.PreviewOutput then
 			pac.AddHook("HUDPaint", "proxy" .. self.UniqueID, function() draw_proxy_text(self, str) end)
 		else
@@ -2180,6 +2261,12 @@ function PART:GetActiveFunctions()
 	if self.Expression == "" then return {self.Input, self.Function} end
 	local possible_funcs = {}
 	for kw,_ in pairs(PART.Inputs) do
+		local kw2 = kw .. "("
+		if string.find(self.Expression, kw2, 0, true) ~= nil then
+			table.insert(possible_funcs, kw)
+		end
+	end
+	for kw,_ in pairs(PART.Functions) do
 		local kw2 = kw .. "("
 		if string.find(self.Expression, kw2, 0, true) ~= nil then
 			table.insert(possible_funcs, kw)

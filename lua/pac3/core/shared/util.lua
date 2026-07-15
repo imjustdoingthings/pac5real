@@ -139,6 +139,15 @@ end
 
 texture_keys["include"] = "include"
 
+-- screenspace_general(_8tex) textures
+texture_keys["texture1"] = "texture1"
+texture_keys["texture2"] = "texture2"
+texture_keys["texture3"] = "texture3"
+texture_keys["texture4"] = "texture4"
+texture_keys["texture5"] = "texture5"
+texture_keys["texture6"] = "texture6"
+texture_keys["texture7"] = "texture7"
+
 -- build texture_keys_seq for sequential table reads of texture_keys
 local texture_keys_seq = {}
 for k in pairs(texture_keys) do
