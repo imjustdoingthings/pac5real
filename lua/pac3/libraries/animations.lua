@@ -655,7 +655,7 @@ function animations.StopEntityAnimation(ent, name, time)
 end
 
 function animations.StopAllEntityAnimations(ent, time)
-	if ent.pac_animations then
+	if ent.pac_animations and v.pac_is_drawing then
 		for name in pairs(ent.pac_animations) do
 			animations.StopEntityAnimation(ent, name, time)
 		end
