@@ -489,6 +489,11 @@ local function ent_draw_model(self, ent, pos, ang)
 			pac.SetupBones(ent)
 			ent.needs_setupbones_from_legacy_bone_parts = nil
 		end
+		
+		if self.pac_render_matrix then
+			ent:EnableMatrix("RenderMultiply", self.pac_render_matrix)
+		end
+		
 		ent:DrawModel()
 	end
 end
@@ -847,8 +852,10 @@ function PART:ApplyMatrix()
 
 	if mat:IsIdentity() then
 		ent:DisableMatrix("RenderMultiply")
+		self.pac_render_matrix = nil
 	else
 		ent:EnableMatrix("RenderMultiply", mat)
+		self.pac_render_matrix = mat
 	end
 end
 
