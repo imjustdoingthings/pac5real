@@ -3177,7 +3177,7 @@ do
 
 	--TODO: Rate limit!!!
 	net.Receive("pac.BroadcastPlayerButton", function()
-		local ply = net.ReadPlayer()
+		local ply = net.ReadEntity()
 
 		if not ply:IsValid() then return end
 
@@ -4164,7 +4164,7 @@ pac.camera_linked_command_events = {}
 local initially_check_camera_linked_command_events = true
 
 net.Receive("pac_event", function(umr)
-	local ply = net.ReadPlayer()
+	local ply = net.ReadEntity()
 	local str = net.ReadString()
 	local on = net.ReadInt(8)
 
@@ -4199,7 +4199,7 @@ end)
 
 local sequence_verbosity = CreateConVar("pac_event_sequenced_verbosity", 1, FCVAR_ARCHIVE, "whether to print info when running pac_event_sequenced")
 net.Receive("pac_event_set_sequence", function(len)
-	local ply = net.ReadPlayer()
+	local ply = net.ReadEntity()
 	local event = net.ReadString()
 	local num = net.ReadUInt(8)
 
@@ -4233,7 +4233,7 @@ net.Receive("pac_event_set_sequence", function(len)
 end)
 
 net.Receive("pac_event_update_sequence_bounds", function(len)
-	local ply = net.ReadPlayer()
+	local ply = net.ReadEntity()
 	local tbl = net.ReadTable()
 	if not ply:IsPlayer() then return end
 	ply.pac_command_event_sequencebases = ply.pac_command_event_sequencebases or {}

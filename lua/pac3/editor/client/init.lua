@@ -32,6 +32,7 @@ include("about.lua")
 include("animation_timeline.lua")
 include("render_scores.lua")
 include("wires.lua")
+include("proxy_graphing.lua")
 
 include("wear_filter.lua")
 include("show_outfit_on_use.lua")
@@ -51,6 +52,7 @@ local showInEditor = CreateConVar("pac_show_in_editor", "1", {FCVAR_ARCHIVE}, "S
 pace.pac_show_uniqueid = CreateConVar("pac_show_uniqueid", "0", {FCVAR_ARCHIVE}, "Show uniqueids of parts inside editor")
 
 function pace.OpenEditor()
+	if not pac.LocalPlayer then pac.LocalPlayer = LocalPlayer() end
 	pace.CloseEditor()
 
 	if hook.Run("PrePACEditorOpen", pac.LocalPlayer) == false then return end
@@ -157,7 +159,7 @@ function pace.RefreshFiles()
 		pace.Editor:MakeBar()
 	end
 
-	if pace.SpawnlistBrowser:IsValid() then
+	if IsValid(pace.SpawnlistBrowser) then
 		pace.SpawnlistBrowser:PopulateFromClient()
 	end
 end
@@ -361,7 +363,7 @@ do
 	end
 
 	net.Receive("pac_in_editor_posang", function()
-		local ply = net.ReadPlayer()
+		local ply = net.ReadEntity()
 		if not IsValid(ply) then return end
 
 		local pos = net.ReadVector()
