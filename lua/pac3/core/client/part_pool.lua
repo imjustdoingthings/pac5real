@@ -804,8 +804,9 @@ do -- drawing
 		local pac_sv_draw_distance
 
 		pac.AddHook("Think", "update_parts", function()
-			if not localplayer then
-				localplayer = LocalPlayer()	-- LocalPlayer never changes once its valid, right?
+			if not IsValid(localplayer) then
+				localplayer = LocalPlayer()
+				if not IsValid(localplayer) then return end
 			end
 
 			-- commonly used variables
