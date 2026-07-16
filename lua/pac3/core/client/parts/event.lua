@@ -473,11 +473,19 @@ local function calc_velocity(part)
 		return vector_origin
 	end
 
-	local diff = part:GetWorldPosition() - (part.last_pos or Vector(0, 0, 0))
-	part.last_pos = part:GetWorldPosition()
+	local current_pos = part:GetWorldPosition()
+	if not part.last_pos then
+		part.last_pos = current_pos
+		return vector_origin
+	end
+
+	local diff = current_pos - part.last_pos
+	part.last_pos = current_pos
+
+	local instantaneous_velocity = diff / FrameTime()
 
 	part.last_vel_smooth = part.last_vel_smooth or Vector(0, 0, 0)
-	part.last_vel_smooth = part.last_vel_smooth + (part:GetWorldPosition() - part.last_vel_smooth) * FrameTime() * 4
+	part.last_vel_smooth = part.last_vel_smooth + (instantaneous_velocity - part.last_vel_smooth) * FrameTime() * 4
 
 	return part.last_vel_smooth
 end
