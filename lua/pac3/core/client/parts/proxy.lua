@@ -1648,7 +1648,7 @@ end
 
 local proxy_verbosity = CreateConVar("pac_proxy_verbosity", 1, FCVAR_ARCHIVE, "whether to print info when running pac_proxy")
 net.Receive("pac_proxy", function()
-	local ply = net.ReadPlayer()
+	local ply = net.ReadEntity()
 	local str = net.ReadString()
 
 	local x = net.ReadFloat()

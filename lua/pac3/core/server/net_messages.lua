@@ -19,7 +19,7 @@ do -- button event
 		if not ply.pac_broadcast_buttons[key] then return end
 
 		net.Start("pac.BroadcastPlayerButton")
-		net.WritePlayer(ply)
+		net.WriteEntity(ply)
 		net.WriteUInt(key, 8)
 		net.WriteBool(down)
 		net.Broadcast()
@@ -38,7 +38,7 @@ net.Receive("pac_chat_typing_mirror", function(len, ply)
 	local str = net.ReadString()
 	net.Start("pac_chat_typing_mirror_broadcast")
 	net.WriteString(str)
-	net.WritePlayer(ply)
+	net.WriteEntity(ply)
 	net.Broadcast()
 end)
 

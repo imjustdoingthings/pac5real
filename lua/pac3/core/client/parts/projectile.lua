@@ -582,7 +582,7 @@ do -- physical
 	end)
 
 	net.Receive("pac_projectile_attach", function()
-		local ply = net.ReadPlayer()
+		local ply = net.ReadEntity()
 		local ent_id = net.ReadInt(16)
 		local partuid = net.ReadString()
 		local surfprop = net.ReadString()

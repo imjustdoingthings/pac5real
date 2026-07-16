@@ -53,7 +53,7 @@ concommand.Add("pac_event", function(ply, _, args)
 	end
 
 	net.Start("pac_event", true)
-		net.WritePlayer(ply)
+		net.WriteEntity(ply)
 		net.WriteString(event)
 		net.WriteInt(extra, 8)
 	net.Broadcast()
@@ -174,13 +174,13 @@ concommand.Add("+pac_event", function(ply, _, args)
 		plyTbl.pac_event_toggles[event] = true
 
 		net.Start("pac_event", true)
-			net.WritePlayer(ply)
+			net.WriteEntity(ply)
 			net.WriteString(event)
 			net.WriteInt(1, 8)
 		net.Broadcast()
 	else
 		net.Start("pac_event", true)
-			net.WritePlayer(ply)
+			net.WriteEntity(ply)
 			net.WriteString(args[1] .. "_on")
 		net.Broadcast()
 	end
@@ -204,13 +204,13 @@ concommand.Add("-pac_event", function(ply, _, args)
 		plyTbl.pac_event_toggles[event] = false
 
 		net.Start("pac_event", true)
-			net.WritePlayer(ply)
+			net.WriteEntity(ply)
 			net.WriteString(event)
 			net.WriteInt(0, 8)
 		net.Broadcast()
 	else
 		net.Start("pac_event", true)
-			net.WritePlayer(ply)
+			net.WriteEntity(ply)
 			net.WriteString(args[1] .. "_off")
 		net.Broadcast()
 	end
@@ -267,7 +267,7 @@ concommand.Add("pac_proxy", function(ply, _, args)
 	plyTbl.pac_proxy_events[str] = {name = str, x = x, y = y, z = z}
 
 	net.Start("pac_proxy", true)
-		net.WritePlayer(ply)
+		net.WriteEntity(ply)
 		net.WriteString(args[1])
 
 		net.WriteFloat(x or 0)

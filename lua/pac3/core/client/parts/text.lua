@@ -17,8 +17,10 @@ local draw_distance = CreateClientConVar("pac_limit_text_2d_draw_distance", "100
 
 net.Receive("pac_chat_typing_mirror_broadcast", function(len)
 	local text = net.ReadString()
-	local ply = net.ReadPlayer()
-	ply.pac_mirrored_chat_text = text
+	local ply = net.ReadEntity()
+	if ply and ply:IsValid() then
+		ply.pac_mirrored_chat_text = text
+	end
 end)
 
 local TTT_fonts = {

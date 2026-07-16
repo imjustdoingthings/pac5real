@@ -94,7 +94,7 @@ do
 		local part_pos = net.ReadVector()
 
 		net.Start("pac_in_editor_posang", true)
-			net.WritePlayer(ply)
+			net.WriteEntity(ply)
 			net.WriteVector(pos)
 			net.WriteAngle(ang)
 			net.WriteVector(part_pos)

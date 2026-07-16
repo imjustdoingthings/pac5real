@@ -3169,7 +3169,7 @@ do
 
 	--TODO: Rate limit!!!
 	net.Receive("pac.BroadcastPlayerButton", function()
-		local ply = net.ReadPlayer()
+		local ply = net.ReadEntity()
 
 		if not ply:IsValid() then return end
 
@@ -4156,7 +4156,7 @@ pac.camera_linked_command_events = {}
 local initially_check_camera_linked_command_events = true
 
 net.Receive("pac_event", function(umr)
-	local ply = net.ReadPlayer()
+	local ply = net.ReadEntity()
 	local str = net.ReadString()
 	local on = net.ReadInt(8)
 
