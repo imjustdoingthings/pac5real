@@ -684,7 +684,7 @@ if SERVER then
 			end
 
 			net.Start("pac_projectile_attach")
-				net.WriteEntity(ply)
+				net.WritePlayer(ply)
 				net.WriteInt(ent:EntIndex(), 16)
 				net.WriteString(part.UniqueID)
 				net.WriteString(part.SurfaceProperties)

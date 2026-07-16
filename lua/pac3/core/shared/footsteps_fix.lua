@@ -9,7 +9,7 @@ if game.SinglePlayer() then
 			net.Send(ply)
 
 			net.Start("pac_footstep")
-				net.WriteEntity(ply)
+				net.WritePlayer(ply)
 				net.WriteVector(pos)
 				net.WriteString(snd)
 				net.WriteFloat(vol)
@@ -29,7 +29,7 @@ if game.SinglePlayer() then
 
 	if CLIENT then
 		net.Receive("pac_footstep", function(len)
-			local ply = net.ReadEntity()
+			local ply = net.ReadPlayer()
 			local pos = net.ReadVector()
 			local snd = net.ReadString()
 			local vol = net.ReadFloat()

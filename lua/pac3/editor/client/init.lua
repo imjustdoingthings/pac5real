@@ -363,7 +363,7 @@ do
 	end
 
 	net.Receive("pac_in_editor_posang", function()
-		local ply = net.ReadEntity()
+		local ply = net.ReadPlayer()
 		if not IsValid(ply) then return end
 
 		local pos = net.ReadVector()
