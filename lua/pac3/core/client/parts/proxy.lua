@@ -2060,12 +2060,7 @@ function PART:OnThink(to_hide)
 	local playerowner = self:GetPlayerOwner() == pac.LocalPlayer
 	local part = self:GetTarget()
 	if not part:IsValid() then return end
-	if part.ClassName == "woohoo" then --why a part hardcode exclusion??
-		--ok fine I guess it's because it's super expensive, but at least we can be selective about it, the other parameters are safe
-		if self.VariableName == "Resolution" or self.VariableName == "BlurFiltering" and self.touched then
-			return
-		end
-	end
+
 
 	self:CalcVelocity()
 

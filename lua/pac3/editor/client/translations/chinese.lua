@@ -185,7 +185,6 @@ return {
 	["shake"] = "震动效果",
 	["sunbeams"] = "阳光效果",
 	["webaudio"] = "外链音频",
-	["woohoo"] = "马赛克",
 	["load from url"] = "加载URL",
 	["backups"] = "备份",
 	["outfit backups"] = "衣架备份",

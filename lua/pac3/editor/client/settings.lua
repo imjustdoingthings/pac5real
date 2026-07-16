@@ -222,7 +222,7 @@ pace.partmenu_categories_experimental = {
 		["text"]=					"text",
 		["trail2"]=				"trail2",
 		["sound"]=						"sound",
-		["woohoo"]=					"woohoo",
+
 		["light2"]=					"light2",
 		["shake"]=						"shake",
 	}
@@ -325,7 +325,7 @@ pace.partmenu_categories_default =
 		["text"]	=	"text",
 		["trail2"]	=	"trail2",
 		["sound"]	=	"sound",
-		["woohoo"]	=	"woohoo",
+
 		["light2"]	=	"light2",
 		["shake"]	=	"shake"
 	}

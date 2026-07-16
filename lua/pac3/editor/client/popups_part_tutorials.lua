@@ -895,12 +895,7 @@ do
 			popup_tutorial = "This part is like an entity part, but for weapons. It can change your weapon's position and appearance, for all or one weapon class."
 		},
 
-		["woohoo"] = {
-			tooltip = "applies a censor square",
-			popup_tutorial =
-			"This part draws a pixelated square with what's behind it, with a possible blur filter and adjustable resolution.\n"..
-			"It requires a lot of resources to set up and needs to refresh in specific circumstances, which is why you can't change its resolution or blur filtering state with proxies."
-		},
+
 
 		["flex"] = {
 			tooltip = "Adjusts one facial expression slot",

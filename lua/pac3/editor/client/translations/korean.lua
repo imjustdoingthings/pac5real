@@ -136,7 +136,6 @@ return {
 ["halo"] = "빛나는 테두리",
 ["particles"] = "파티클",
 ["sunbeams"] = "햇살",
-["woohoo"] = "모자이크",
 ["start alpha"] = "처음 알파값",
 ["end alpha"] = "끝 알파값",
 ["multiplier"] = "효과 배율",
