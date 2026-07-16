@@ -90,6 +90,8 @@ pace.ClearUndo()
 
 local last_json
 
+local pac_editor_undo_limit = CreateConVar("pac_editor_undo_limit", "30", FCVAR_ARCHIVE, "Max undo history states. Lower values use less memory.")
+
 function pace.RecordUndoHistory()
 	local data = get_current_outfit()
 
@@ -102,6 +104,12 @@ function pace.RecordUndoHistory()
 	end
 
 	table.insert(pace.UndoHistory, data)
+	
+	local limit = math.max(1, pac_editor_undo_limit:GetInt())
+	while #pace.UndoHistory > limit do
+		table.remove(pace.UndoHistory, 1)
+	end
+
 	pace.UndoPosition = #pace.UndoHistory
 end
 

@@ -179,15 +179,13 @@ function pac.DownloadMDL(url, callback, onfail, ply)
 			return
 		end
 
-		local file_content = file.Read(path)
-
-		if not file_content then
+		if not file.Exists(path, "DATA") or file.Size(path, "DATA") == 0 then
 			pac.Message(Color(255, 50, 50), "content is empty")
 			file.Delete(path)
 			return
 		end
 
-		local id = util.CRC(url .. file_content)
+		local id = util.CRC(url .. tostring(file.Time(path, "DATA")))
 
 		if skip_cache then
 			id = util.CRC(id .. os.clock())

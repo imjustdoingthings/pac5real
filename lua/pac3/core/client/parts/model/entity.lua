@@ -137,7 +137,9 @@ function PART:RenderOverride(ent)
 
 	if self:IsValid() and self:GetParentOwner():IsValid() then
 		if ent.pac_bonemerged then
-			for _, e in ipairs(ent.pac_bonemerged) do
+			local bm = ent.pac_bonemerged
+			for i = 1, #bm do
+				local e = bm[i]
 				if e.pac_drawing_model then return end
 			end
 		end

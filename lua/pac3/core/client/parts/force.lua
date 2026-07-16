@@ -414,6 +414,7 @@ local function preview_process_ents(tbl)
 	end
 end
 
+local temp_force_matrix = Matrix()
 function PART:OnDraw()
 	self.pos,self.ang = self:GetDrawPosition()
 	if not self.Preview and not self.PreviewForces then pac.RemoveHook("PostDrawOpaqueRenderables", "pac_force_Draw"..self.UniqueID) end
@@ -440,10 +441,10 @@ function PART:OnDraw()
 				local obj = Mesh()
 				self:BuildCylinder(obj)
 				render.SetMaterial( Material( "models/wireframe" ) )
-				mat = Matrix()
+				temp_force_matrix:Identity()
 				mat:Translate(self:GetWorldPosition())
 				mat:Rotate(self:GetWorldAngles())
-				cam.PushModelMatrix( mat )
+				cam.PushModelMatrix( temp_force_matrix )
 				obj:Draw()
 				cam.PopModelMatrix()
 				if self.Length ~= 0 and self.Radius ~= 0 then
@@ -462,10 +463,10 @@ function PART:OnDraw()
 				local obj = Mesh()
 				self:BuildCone(obj)
 				render.SetMaterial( Material( "models/wireframe" ) )
-				mat = Matrix()
+				temp_force_matrix:Identity()
 				mat:Translate(self:GetWorldPosition())
 				mat:Rotate(self:GetWorldAngles())
-				cam.PushModelMatrix( mat )
+				cam.PushModelMatrix( temp_force_matrix )
 				obj:Draw()
 				cam.PopModelMatrix()
 				if self.Radius ~= 0 then

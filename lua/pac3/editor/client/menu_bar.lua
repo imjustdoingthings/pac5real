@@ -159,7 +159,7 @@ local function populate_pac(menu)
 						popup_pref_mode:AddOption(L"screen", function() RunConsoleCommand("pac_popups_preferred_location", "screen") end):SetImage('icon16/monitor.png')
 					
 
-			pnl = experimentals:AddOption("Bulk Select : " .. GetConVar("pac_bulk_select_key"):GetString() .. " + click to select; operations are in the part menu") pnl:SetIcon("icon16/table_multiple.png") pnl:SetTooltip("Bulk Select selects multiple parts to do operations quickly.\nIt has an order. The order of selection can matter for some operations like Bulk Morph Property.")
+			pnl = experimentals:AddOption("Bulk Select : " .. (GetConVar("pac_bulk_select_key") and GetConVar("pac_bulk_select_key"):GetString() or "ctrl") .. " + click to select; operations are in the part menu") pnl:SetIcon("icon16/table_multiple.png") pnl:SetTooltip("Bulk Select selects multiple parts to do operations quickly.\nIt has an order. The order of selection can matter for some operations like Bulk Morph Property.")
 			pnl = experimentals:AddOption("Morph properties on bulk select", pace.BulkMorphProperty) pnl:SetIcon("icon16/chart_line.png") pnl:SetTooltip("Once you have selected parts with Bulk Select, set variables gradually.\nIt can achieve color fades across multiple parts.\nThe order of selection matters.")
 			pnl = experimentals:AddOption("Arraying menu : select a matrix part and a stackable part", function() pace.OpenArrayingMenu(pace.current_part) end) pnl:SetIcon("icon16/shape_group.png") pnl:SetTooltip("Select an origin/matrix part before opening the menu.\nThen select an arrayed part\nThus you can quickly place models in a circle for example.\nBoth the matrix and arrayed part need to be movables.")
 			pnl = experimentals:AddOption("Process by Criteria", function()
@@ -192,6 +192,15 @@ end
 
 local function populate_options(menu)
 	menu:AddOption(L"settings", function() pace.OpenSettings() end)
+
+	menu:AddOption("max undo history limit", function()
+		Derma_StringRequest("pac_editor_undo_limit", "set max undo history limit (default 30, lower = less memory usage)", tonumber(GetConVar("pac_editor_undo_limit"):GetString()) or 30,
+			function(val)
+				if isnumber(tonumber(val)) then
+					GetConVar("pac_editor_undo_limit"):SetString(val)
+				end
+			end)
+	end):SetImage("icon16/arrow_undo.png")
 
 	menu:AddCVar(L"Keyboard shortcuts: Legacy mode", "pac_editor_shortcuts_legacy_mode", "1", "0")
 	local tree, pnl = menu:AddSubMenu(L"tree config", function() end)
@@ -258,7 +267,7 @@ local function populate_options(menu)
 	end):SetImage("icon16/time.png")
 
 	halos:AddOption("How it reacts to bulk select", function()
-		local bulk_key_option_str = "bulk select key (current bind:" .. GetConVar("pac_bulk_select_key"):GetString() .. ")"
+		local bulk_key_option_str = "bulk select key (current bind:" .. (GetConVar("pac_bulk_select_key") and GetConVar("pac_bulk_select_key"):GetString() or "ctrl") .. ")"
 		Derma_Query("What keys should trigger the hover halo on bulk select?","pac_bulk_select_halo_mode",
 			"passive",function() RunConsoleCommand("pac_bulk_select_halo_mode", 1) end,
 			bulk_key_option_str, function() RunConsoleCommand("pac_bulk_select_halo_mode", 2) end,

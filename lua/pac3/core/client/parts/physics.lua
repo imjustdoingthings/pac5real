@@ -90,6 +90,7 @@ function PART:SetMass(n)
 	end
 end
 
+local temp_phys_matrix = Matrix()
 local mat_wireframe
 
 function PART:MeshDraw()
@@ -109,11 +110,11 @@ function PART:MeshDraw()
 
 		render.SetMaterial(mat_wireframe)
 
-		local mat = Matrix()
-		mat:Translate(self.phys:GetPos())
-		mat:Rotate(self.phys:GetAngles())
+		temp_phys_matrix:Identity()
+		temp_phys_matrix:Translate(self.phys:GetPos())
+		temp_phys_matrix:Rotate(self.phys:GetAngles())
 
-		cam.PushModelMatrix(mat)
+		cam.PushModelMatrix(temp_phys_matrix)
 		drawmesh:Draw()
 		cam.PopModelMatrix()
 	end

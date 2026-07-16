@@ -421,7 +421,9 @@ function PART:PreEntityDraw(ent, pos, ang)
 	end
 
 	if self.draw_bodygroups then
-		for _, v in ipairs(self.draw_bodygroups) do
+		local dbg = self.draw_bodygroups
+		for i = 1, #dbg do
+			local v = dbg[i]
 			ent:SetBodygroup(v[1], v[2])
 		end
 	end
@@ -615,23 +617,24 @@ function PART:SetForceObjUrl(value)
 	self:ProcessModelChange()
 end
 
+local temp_realdraw_matrix = Matrix()
 local function RealDrawModel(self, ent, pos, ang)
 	if self.Mesh then
 		ent:SetModelScale(0.001, 0)
 		ent:DrawModel()
 
-		local matrix = Matrix()
+		temp_realdraw_matrix:Identity()
 
-		matrix:SetAngles(ang)
-		matrix:SetTranslation(pos)
+		temp_realdraw_matrix:SetAngles(ang)
+		temp_realdraw_matrix:SetTranslation(pos)
 
 		if ent.pac_model_scale then
-			matrix:Scale(ent.pac_model_scale)
+			temp_realdraw_matrix:Scale(ent.pac_model_scale)
 		else
-			matrix:Scale(self.Scale * self.Size)
+			temp_realdraw_matrix:Scale(self.Scale * self.Size)
 		end
 
-		cam_PushModelMatrix(matrix)
+		cam_PushModelMatrix(temp_realdraw_matrix)
 			self.Mesh:Draw()
 		cam_PopModelMatrix()
 	else

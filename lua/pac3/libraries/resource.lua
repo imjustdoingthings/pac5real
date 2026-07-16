@@ -96,7 +96,13 @@ end
 clearCacheAfter(os.time() - maxAgeConvar:GetInt())
 
 local function rename_file(a, b)
+	if file.Rename then
+		return file.Rename(a, b)
+	end
+	
 	local str_a = file.Read(a, "DATA")
+	if not str_a then return false end
+	
 	file.Delete(a, "DATA")
 	file.Write(b, str_a)
 

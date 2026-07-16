@@ -106,6 +106,10 @@ function pac.FixUrl(url, expectedContentType)
 end
 
 function pac.getContentLength(url, cb, failcb)
+	if url:find("dropboxusercontent.com", 1, true) then
+		return pac.contentLengthFallback(url, cb, failcb)
+	end
+-- specific Dropbox handling.
 	return http("HEAD", url, {["Accept-Encoding"] = "none"}, function(_, _, headers)
 		local length
 

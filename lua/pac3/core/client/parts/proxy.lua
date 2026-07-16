@@ -2130,18 +2130,24 @@ function PART:OnThink(to_hide)
 
 		if self.AffectChildren then
 			if self.MultiTargetPart then
-				for _,part2 in ipairs(self.MultiTargetPart) do
+				local mtp = self.MultiTargetPart
+				for i = 1, #mtp do
+					local part2 = mtp[i]
 					if not part2.GetProperty then continue end
 					set(self, part2, x, y, z, true)
 				end
 			else
-				for _, part in ipairs(self:GetChildren()) do
+				local children = self:GetChildren()
+				for i = 1, #children do
+					local part = children[i]
 					set(self, part, x, y, z, true)
 				end
 			end
 		else
 			if self.MultiTargetPart then
-				for _,part2 in ipairs(self.MultiTargetPart) do
+				local mtp = self.MultiTargetPart
+				for i = 1, #mtp do
+					local part2 = mtp[i]
 					if not part2.GetProperty then continue end
 					set(self, part2, x, y, z)
 				end
@@ -2203,18 +2209,24 @@ function PART:OnThink(to_hide)
 
 			if self.AffectChildren then
 				if self.MultiTargetPart then
-					for _,part2 in ipairs(self.MultiTargetPart) do
+					local mtp = self.MultiTargetPart
+					for i = 1, #mtp do
+						local part2 = mtp[i]
 						if not part2.GetProperty then continue end
 						set(self, part2, num, nil, nil, true)
 					end
 				else
-					for _, part in ipairs(self:GetChildren()) do
+					local children = self:GetChildren()
+					for i = 1, #children do
+						local part = children[i]
 						set(self, part, num, nil, nil, true)
 					end
 				end
 			else
 				if self.MultiTargetPart then
-					for _,part2 in ipairs(self.MultiTargetPart) do
+					local mtp = self.MultiTargetPart
+					for i = 1, #mtp do
+						local part2 = mtp[i]
 						if not part2.GetProperty then continue end
 						set(self, part2, num)
 					end
