@@ -145,7 +145,8 @@ function pace.ClientSettingsMenu(self)
 
 	self:Help(L"Downloads"):SetFont("DermaDefaultBold")
 		self:CheckBox(L"Show Download Monitor HUD", "pac_show_download_monitor")
-		self:NumSlider(L"Max Concurrent Downloads", "pac_objdl_streams", 1, 16, 0)
+		self:NumSlider(L"Max Concurrent Models", "pac_objdl_streams", 1, 16, 0)
+		self:NumSlider(L"Max Concurrent Textures", "pac_urltex_streams", 1, 8, 0)
 
 	self:Help(L"Sounds"):SetFont("DermaDefaultBold")
 		self:NumSlider(L"Sounds volume", "pac_volume", 0, 1, 2)

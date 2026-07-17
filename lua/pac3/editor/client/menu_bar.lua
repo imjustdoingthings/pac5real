@@ -211,6 +211,15 @@ local function populate_options(menu)
 			end)
 	end):SetImage("icon16/server_connect.png")
 
+	menu:AddOption(L"max concurrent textures", function()
+		Derma_StringRequest("pac_urltex_streams", "set max concurrent texture downloads (default 3, warning: higher causes lag spikes)", tonumber(GetConVar("pac_urltex_streams"):GetString()) or 3,
+			function(val)
+				if isnumber(tonumber(val)) then
+					GetConVar("pac_urltex_streams"):SetString(val)
+				end
+			end)
+	end):SetImage("icon16/images.png")
+
 	menu:AddCVar(L"show download monitor", "pac_show_download_monitor", "1", "0")
 
 	menu:AddCVar(L"Keyboard shortcuts: Legacy mode", "pac_editor_shortcuts_legacy_mode", "1", "0")

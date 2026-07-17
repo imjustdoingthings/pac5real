@@ -635,8 +635,6 @@ end
 
 -- Download queuing
 function urlobj.DownloadQueueThink()
-	if pac.urltex and pac.urltex.Busy then return end
-
 	for url, queueItem in pairs(urlobj.DownloadQueue) do
 		if not queueItem:IsDownloading() and
 		   not queueItem:IsCacheDecodeFinished () then
@@ -726,17 +724,9 @@ hook.Add("HUDPaint", "pac_download_monitor", function()
 	end
 	
 	if tex_queue_count > 0 then
-		local active_tex_url = nil
-		if pac.urltex.ActivePanel and pac.urltex.ActivePanel:IsValid() then
-			for url, data in pairs(pac.urltex.Queue) do
-				active_tex_url = url
-				break
-			end
-		end
-		
 		for url, data in pairs(pac.urltex.Queue) do
-			if url == active_tex_url then
-				table.insert(active_items, {url = url, type = "[TEX]", time_left = 5}) 
+			if data.is_downloading then
+				table.insert(active_items, {url = url, type = "[TEX]", time_left = (data.timeout_time or 5) - pac.RealTime}) 
 			else
 				pending_count = pending_count + 1
 			end

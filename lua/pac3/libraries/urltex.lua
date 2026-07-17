@@ -1,7 +1,7 @@
 local urltex = {}
 
 urltex.TextureSize = 1024
-urltex.ActivePanel = urltex.ActivePanel or NULL
+urltex.ActiveDownloads = urltex.ActiveDownloads or 0
 urltex.Queue = urltex.Queue or {}
 urltex.Cache = urltex.Cache or {}
 
@@ -10,10 +10,7 @@ concommand.Add("pac_urltex_clear_cache", function()
 	urltex.Queue = {}
 end)
 
-if urltex.ActivePanel:IsValid() then
-	urltex.ActivePanel:Remove()
-end
-
+local max_streams = CreateClientConVar("pac_urltex_streams", "3", true, false, "Max concurrent texture downloads")
 local enable = CreateClientConVar("pac_enable_urltex", "1", true)
 local EMPTY_FUNC = function() end
 local function findFlag(url, flagID)
@@ -95,8 +92,7 @@ function urltex.Think()
 
 	if table.Count(urltex.Queue) > 0 then
 		for url, data in pairs(urltex.Queue) do
-			-- when the panel is gone start a new one
-			if not urltex.ActivePanel:IsValid() then
+			if not data.is_downloading and urltex.ActiveDownloads < max_streams:GetInt() then
 				urltex.StartDownload(data.url, data)
 			end
 		end
@@ -109,19 +105,27 @@ end
 timer.Create("urltex_queue", 0.1, 0, urltex.Think)
 
 function urltex.StartDownload(url, data)
-	if urltex.ActivePanel:IsValid() then
-		urltex.ActivePanel:Remove()
-	end
+	data.is_downloading = true
+	urltex.ActiveDownloads = urltex.ActiveDownloads + 1
+	data.timeout_time = pac.RealTime + 5
 
 	url = pac.FixUrl(url, "image")
 	local size = tonumber(data.size or urltex.TextureSize)
-	local id = "urltex_download_" .. url
+	local id = "urltex_download_" .. tostring(data.urlIndex)
 	local pnl
 	local frames_passed = 0
+	
+	local function cleanupDownload()
+		if data.is_downloading then
+			data.is_downloading = false
+			urltex.ActiveDownloads = math.max(0, urltex.ActiveDownloads - 1)
+		end
+		if IsValid(pnl) then pnl:Remove() end
+	end
 
 	local function createDownloadPanel()
+		data.timeout_time = pac.RealTime + 5
 		pnl = vgui.Create("DHTML")
-		-- Tested in PPM/2, this code works perfectly
 		pnl:SetVisible(false)
 		pnl:SetSize(size, size)
 		pnl:SetHTML([[<html>
@@ -154,8 +158,6 @@ function urltex.StartDownload(url, data)
 				frames_passed = frames_passed + 1
 			end
 		end
-
-		urltex.ActivePanel = pnl
 	end
 
 	local go = false
@@ -169,7 +171,6 @@ function urltex.StartDownload(url, data)
 
 		if timeoutNum < 5 then
 			pac.dprint("material download %q timed out.. trying again for the %ith time", url, timeoutNum)
-			-- try again
 			go = false
 			time = 0
 			createDownloadPanel()
@@ -177,18 +178,17 @@ function urltex.StartDownload(url, data)
 			pac.dprint("material download %q timed out for good", url, timeoutNum)
 			pac.RemoveHook("Think", id)
 			timer.Remove(id)
+			cleanupDownload()
 			urltex.Queue[data.urlIndex] = nil
 		end
 	end
 
 	function think()
-		-- panel is no longer valid
-		if not pnl:IsValid() then
+		if not IsValid(pnl) then
 			onTimeout()
 			return
 		end
 
-		-- give it some time.. IsLoading is sometimes lying, especially on chromium branch
 		if not go and not pnl:IsLoading() then
 			time = pac.RealTime + 1
 			go = true
@@ -204,12 +204,12 @@ function urltex.StartDownload(url, data)
 				local tex = html_mat:GetTexture("$basetexture")
 				tex:Download()
 				vertex_mat:SetTexture("$basetexture", tex)
-				-- tex:Download()
 
 				urltex.Cache[data.urlIndex] = tex
 
 				pac.RemoveHook("Think", id)
 				timer.Remove(id)
+				cleanupDownload()
 				urltex.Queue[data.urlIndex] = nil
 				local rt
 
@@ -219,9 +219,7 @@ function urltex.StartDownload(url, data)
 					textureFlags = textureFlags + 8 -- clamp T
 					textureFlags = textureFlags + 16 -- anisotropic
 					textureFlags = textureFlags + 256 -- no mipmaps
-					-- textureFlags = textureFlags + 2048 -- Texture is procedural
 					textureFlags = textureFlags + 32768 -- Texture is a render target
-					-- textureFlags = textureFlags + 67108864 -- Usable as a vertex texture
 
 					if data.noclamp then
 						textureFlags = textureFlags - 4
@@ -247,10 +245,6 @@ function urltex.StartDownload(url, data)
 					urltex.Cache[data.urlIndex] = rt
 				end
 
-				timer.Simple(0, function()
-					pnl:Remove()
-				end)
-
 				if data.callbacks then
 					for i, callback in pairs(data.callbacks) do
 						callback(vertex_mat, rt or tex)
@@ -261,8 +255,6 @@ function urltex.StartDownload(url, data)
 	end
 
 	pac.AddHook("Think", id, think)
-
-	-- 5 sec max timeout, 5 maximal timeouts
 	timer.Create(id, 5, 5, onTimeout)
 	createDownloadPanel()
 end
