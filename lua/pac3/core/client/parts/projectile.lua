@@ -158,7 +158,7 @@ function PART:GetSurfacePropsTable() --to view info over in the properties
 end
 
 local_projectiles = {}
-function PART:AttachToEntity(ent, physical)
+function PART:AttachToEntity(ent, physical, cached_tbl)
 	if not self.OutfitPart:IsValid() then return false end
 
 	ent.pac_draw_distance = 0
@@ -183,7 +183,7 @@ function PART:AttachToEntity(ent, physical)
 	end
 
 	if not group then
-		local tbl = self.OutfitPart:ToTable()
+		local tbl = cached_tbl or self.OutfitPart:ToTable()
 
 		group = pac.CreatePart("group", self:GetPlayerOwner())
 		group:SetShowInEditor(false)
@@ -370,6 +370,13 @@ function PART:Shoot(pos, ang, multi_projectile_count)
 		if count > max then
 			return
 		end
+		
+		local cached_tbl
+		if self.Delay == 0 and multi_projectile_count > 1 and self.OutfitPart:IsValid() then
+			cached_tbl = self.OutfitPart:ToTable()
+		end
+		
+		local root_owner = self:GetRootPart():GetOwner()
 
 		local function spawn()
 
@@ -436,7 +443,7 @@ function PART:Shoot(pos, ang, multi_projectile_count)
 					return
 				end
 
-				if not self:GetRootPart():GetOwner():IsValid() then
+				if not root_owner:IsValid() then
 					timer.Simple(0, function() SafeRemoveEntity(ent) end)
 				end
 
@@ -462,7 +469,7 @@ function PART:Shoot(pos, ang, multi_projectile_count)
 
 			ent:SetCollisionGroup(COLLISION_GROUP_PROJECTILE)
 
-			if self:AttachToEntity(ent, false) then
+			if self:AttachToEntity(ent, false, cached_tbl) then
 
 				timer.Simple(math.Clamp(self.LifeTime, 0, 10), function()
 					if ent:IsValid() then
@@ -565,7 +572,7 @@ pac.AddHook("Think", "pac_cleanup_CS_projectiles", function()
 		end
 		if ent.pac_projectile_part == rootpart then
 			local tbl = ent.pac_projectile_part:GetChildren()
-			local partchild = tbl[next(tbl)] --ent.pac_projectile_part is the root group, but outfit part is the first child
+			local partchild = tbl[1] --ent.pac_projectile_part is the root group, but outfit part is the first child
 
 			if IsValid(partchild) then
 				if partchild:IsHidden() then
