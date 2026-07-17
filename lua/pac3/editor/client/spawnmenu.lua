@@ -143,6 +143,9 @@ function pace.ClientSettingsMenu(self)
 		self:NumSlider(L"Draw distance:", "pac_draw_distance", 0, 20000, 0)
 		self:NumSlider(L"Max render time: ", "pac_max_render_time", 0, 100, 0)
 
+	self:Help(L"Downloads"):SetFont("DermaDefaultBold")
+		self:NumSlider(L"Max Concurrent Downloads", "pac_objdl_streams", 1, 16, 0)
+
 	self:Help(L"Sounds"):SetFont("DermaDefaultBold")
 		self:NumSlider(L"Sounds volume", "pac_volume", 0, 1, 2)
 		self:Button(L"Stop sounds", "pac_stopsound")
