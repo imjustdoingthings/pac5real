@@ -801,9 +801,15 @@ net.Receive("pac_hit_results", function(len)
 	local do_ents_feedback = net.ReadBool()
 	local ents_hit = {}
 	local ents_kill = {}
+	local ents_kill_lookup = {}
 	if do_ents_feedback then
 		ents_hit = net.ReadTable(true)
-		if kill then ents_kill = net.ReadTable(true) end
+		if kill then
+			ents_kill = net.ReadTable(true)
+			for i = 1, #ents_kill do
+				ents_kill_lookup[ents_kill[i]] = true
+			end
+		end
 	end
 	part_setup_runtimes = 0
 
@@ -947,10 +953,11 @@ net.Receive("pac_hit_results", function(len)
 			end
 		end
 		if self.HitMarkerPart then
-			for _,ent in ipairs(ents_hit) do
+			for i = 1, #ents_hit do
+				local ent = ents_hit[i]
 				if IsValid(ent) then
 					local ang = (ent:GetPos() - pos):Angle()
-					if ents_kill[ent] then
+					if ents_kill_lookup[ent] then
 						if self.AllowOverlappingHitMarkers then
 							part_setup_runtimes = part_setup_runtimes + (spawn(self.HitMarkerPart, ent:WorldSpaceCenter(), ang, ent, self.HitMarkerLifetime, owner) or 0)
 						end
@@ -967,7 +974,8 @@ net.Receive("pac_hit_results", function(len)
 			self.KillSoundPart:PlaySound()
 		end
 		if self.KillMarkerPart then
-			for _,ent in ipairs(ents_kill) do
+			for i = 1, #ents_kill do
+				local ent = ents_kill[i]
 				if IsValid(ent) then
 					local ang = (ent:GetPos() - pos):Angle()
 					part_setup_runtimes = part_setup_runtimes + (spawn(self.KillMarkerPart, ent:WorldSpaceCenter(), ang, ent, self.KillMarkerLifetime, owner, true) or 0)

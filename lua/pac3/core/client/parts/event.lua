@@ -3880,7 +3880,9 @@ function PART:TriggerEvent(b)
 	end
 
 	if self.MultiTargetPart then
-		for _,part2 in ipairs(self.MultiTargetPart) do
+		local mtp = self.MultiTargetPart
+		for i = 1, #mtp do
+			local part2 = mtp[i]
 			if part2.SetEventTrigger then part2:SetEventTrigger(self, b) end
 		end
 	end

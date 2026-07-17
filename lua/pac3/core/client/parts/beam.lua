@@ -317,7 +317,9 @@ function PART:OnDraw()
 		local pos, ang = self:GetDrawPosition()
 		render.SetMaterial(self.Materialm)
 		if self.MultiEndPoint then
-			for _,part in ipairs(self.MultiEndPoint) do
+			local mep = self.MultiEndPoint
+			for i = 1, #mep do
+				local part = mep[i]
 				pac.DrawBeam(
 					pos,
 					part:GetWorldPosition(),
