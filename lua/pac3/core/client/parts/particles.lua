@@ -277,9 +277,13 @@ function PART:EmitParticles(pos, ang, real_ang)
 			end
 		end
 
+		local mats = self.Material:Split(";")
+		local use_random_mat = #mats > 1
+		local base_pos = pos
+		local frametime_val = FrameTime()
+
 		for _ = 1, math.min(self.number_particles,max) do
-			local mats = self.Material:Split(";")
-			if #mats > 1 then
+			if use_random_mat then
 				self.Materialm = pac.Material(table.Random(mats), self)
 				self:CallRecursive("OnMaterialChanged")
 			end
@@ -293,37 +297,34 @@ function PART:EmitParticles(pos, ang, real_ang)
 				)
 			end
 
-			local color
-
+			local r, g, b
 			if self.RandomColor then
-				color =
-				{
-					math.random(math.min(self.Color1.r, self.Color2.r), math.max(self.Color1.r, self.Color2.r)),
-					math.random(math.min(self.Color1.g, self.Color2.g), math.max(self.Color1.g, self.Color2.g)),
-					math.random(math.min(self.Color1.b, self.Color2.b), math.max(self.Color1.b, self.Color2.b))
-				}
+				r = math.random(math.min(self.Color1.r, self.Color2.r), math.max(self.Color1.r, self.Color2.r))
+				g = math.random(math.min(self.Color1.g, self.Color2.g), math.max(self.Color1.g, self.Color2.g))
+				b = math.random(math.min(self.Color1.b, self.Color2.b), math.max(self.Color1.b, self.Color2.b))
 			else
-				color = {self.Color1.r, self.Color1.g, self.Color1.b}
+				r, g, b = self.Color1.r, self.Color1.g, self.Color1.b
 			end
 
 			local roll = math.Rand(-self.RollDelta, self.RollDelta)
+			local particle_pos = base_pos
 
 			if self.PositionSpread ~= 0 then
-				pos = pos + Angle(math.Rand(-180, 180), math.Rand(-180, 180), math.Rand(-180, 180)):Forward() * self.PositionSpread
+				particle_pos = particle_pos + Angle(math.Rand(-180, 180), math.Rand(-180, 180), math.Rand(-180, 180)):Forward() * self.PositionSpread
 			end
 
-			do
+			if self.PositionSpread2 ~= vector_origin then
 				local vecAdd = Vector(
 					math.Rand(-self.PositionSpread2.x, self.PositionSpread2.x),
-					math.Rand(-self.PositionSpread2.x, self.PositionSpread2.y),
+					math.Rand(-self.PositionSpread2.y, self.PositionSpread2.y),
 					math.Rand(-self.PositionSpread2.z, self.PositionSpread2.z)
 				)
 				vecAdd:Rotate(originalAng)
-				pos = pos + vecAdd
+				particle_pos = particle_pos + vecAdd
 			end
 
 			for i = 1, double do
-				local particle = emt:Add(self.Materialm or self.Material, pos)
+				local particle = emt:Add(self.Materialm or self.Material, particle_pos)
 
 				if double == 2 then
 					local ang_
@@ -346,12 +347,11 @@ function PART:EmitParticles(pos, ang, real_ang)
 				end
 
 				particle:SetVelocity((vec + ang) * self.Velocity)
-				particle:SetColor(unpack(color))
-				particle:SetColor(unpack(color))
+				particle:SetColor(r, g, b)
 
 				local life = math.Clamp(self.DieTime, 0.0001, 50)
 				if self.AddFrametimeLife then
-					life = life + FrameTime()
+					life = life + frametime_val
 				end
 				particle:SetDieTime(life)
 
