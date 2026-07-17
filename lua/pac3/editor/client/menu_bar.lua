@@ -211,6 +211,8 @@ local function populate_options(menu)
 			end)
 	end):SetImage("icon16/server_connect.png")
 
+	menu:AddCVar(L"show download monitor", "pac_show_download_monitor", "1", "0")
+
 	menu:AddCVar(L"Keyboard shortcuts: Legacy mode", "pac_editor_shortcuts_legacy_mode", "1", "0")
 	local tree, pnl = menu:AddSubMenu(L"tree config", function() end)
 		tree.GetDeleteSelf = function() return false end

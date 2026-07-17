@@ -144,6 +144,7 @@ function pace.ClientSettingsMenu(self)
 		self:NumSlider(L"Max render time: ", "pac_max_render_time", 0, 100, 0)
 
 	self:Help(L"Downloads"):SetFont("DermaDefaultBold")
+		self:CheckBox(L"Show Download Monitor HUD", "pac_show_download_monitor")
 		self:NumSlider(L"Max Concurrent Downloads", "pac_objdl_streams", 1, 16, 0)
 
 	self:Help(L"Sounds"):SetFont("DermaDefaultBold")

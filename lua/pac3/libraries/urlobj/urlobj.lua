@@ -280,7 +280,8 @@ function urlobj.ParseObj(data, generateNormals)
 	local inverseLineCount = 1 / lineCount
 	local lineProcessed = 0
 
-	for i, line in ipairs(vLines) do
+	for i = 1, #vLines do
+		local line = vLines[i]
 		local x, y, z = string_match(line, vMatch)
 
 		x, y, z = tonumber(x) or 0, tonumber(y) or 0, tonumber(z) or 0
@@ -293,7 +294,8 @@ function urlobj.ParseObj(data, generateNormals)
 
 	lineProcessed = #vLines
 
-	for i, line in ipairs(vtLines) do
+	for i = 1, #vtLines do
+		local line = vtLines[i]
 		local u, v = string_match(line, vtMatch)
 
 		u, v = tonumber(u) or 0, tonumber(v) or 0
@@ -310,7 +312,8 @@ function urlobj.ParseObj(data, generateNormals)
 	lineProcessed = #vLines + #vtLines
 
 	if not generateNormals then
-		for i, line in ipairs(vnLines) do
+		for i = 1, #vnLines do
+			local line = vnLines[i]
 			local nx, ny, nz = string_match(line, vnMatch)
 
 			if nx and ny and nz then
@@ -331,7 +334,8 @@ function urlobj.ParseObj(data, generateNormals)
 
 	lineProcessed = #vLines + #vtLines + #vnLines
 
-	for i, line in ipairs(facesPreprocess) do
+	for i = 1, #facesPreprocess do
+		local line = facesPreprocess[i]
 		local matchLine = string_match(line, "^ *f +(.*)")
 
 		if matchLine then
@@ -689,5 +693,94 @@ function urlobj.DownloadQueueThink()
 end
 
 timer.Create("urlobj_download_queue", 0.1, 0, urlobj.DownloadQueueThink)
+
+local show_monitor = CreateClientConVar("pac_show_download_monitor", "1", true, false, "Show active custom model downloads")
+
+hook.Add("HUDPaint", "pac_download_monitor", function()
+	if not show_monitor:GetBool() then return end
+	
+	local tex_queue_count = pac and pac.urltex and pac.urltex.Queue and table.Count(pac.urltex.Queue) or 0
+	local obj_queue_count = urlobj.DownloadQueueCount or 0
+	
+	if obj_queue_count == 0 and tex_queue_count == 0 then return end
+	if not pac or not pac.RealTime then return end
+
+	local scrw, scrh = ScrW(), ScrH()
+	local width = 350
+	local pad = 10
+	local y = pad
+	local x = scrw - width - pad
+
+	surface.SetFont("DermaDefaultBold")
+	local th = 14
+	
+	local active_items = {}
+	local pending_count = 0
+	
+	for url, queueItem in pairs(urlobj.DownloadQueue) do
+		if queueItem:IsDownloading() then
+			table.insert(active_items, {url = url, type = "[MDL]", time_left = queueItem.DownloadTimeoutTime - pac.RealTime})
+		else
+			pending_count = pending_count + 1
+		end
+	end
+	
+	if tex_queue_count > 0 then
+		local active_tex_url = nil
+		if pac.urltex.ActivePanel and pac.urltex.ActivePanel:IsValid() then
+			for url, data in pairs(pac.urltex.Queue) do
+				active_tex_url = url
+				break
+			end
+		end
+		
+		for url, data in pairs(pac.urltex.Queue) do
+			if url == active_tex_url then
+				table.insert(active_items, {url = url, type = "[TEX]", time_left = 5}) 
+			else
+				pending_count = pending_count + 1
+			end
+		end
+	end
+
+	local height = pad * 2 + (#active_items * (th + 5)) + th + 15
+	
+	draw.RoundedBox(4, x, y, width, height, Color(0, 0, 0, 200))
+	
+	y = y + pad
+	
+	draw.SimpleText("PAC3 Custom Asset Downloads", "DermaDefaultBold", x + width/2, y, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+	y = y + th + 10
+	
+	local timeout_cvar = GetConVar("pac_objdl_timeout")
+	local default_timeout = timeout_cvar and timeout_cvar:GetFloat() or 15
+
+	for i = 1, #active_items do
+		local item = active_items[i]
+		local nice_url = item.url
+		if #nice_url > 35 then nice_url = nice_url:sub(1, 35) .. "..." end
+		
+		draw.SimpleText(item.type .. " " .. nice_url, "DermaDefault", x + pad, y, Color(200, 200, 200), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+		
+		local timeout = item.type == "[TEX]" and 5 or default_timeout
+		local fraction = math.Clamp(math.max(0, item.time_left) / timeout, 0, 1)
+		
+		local bar_w = 60
+		local bar_h = 6
+		local bar_x = x + width - pad - bar_w
+		local bar_y = y + (th - bar_h) / 2
+		
+		draw.RoundedBox(0, bar_x, bar_y, bar_w, bar_h, Color(100, 100, 100))
+		draw.RoundedBox(0, bar_x, bar_y, bar_w * fraction, bar_h, item.type == "[TEX]" and Color(255, 150, 0) or Color(0, 150, 255))
+		
+		y = y + th + 5
+	end
+	
+	if pending_count > 0 then
+		draw.SimpleText("Pending in queue: " .. pending_count, "DermaDefault", x + width/2, y, Color(150, 150, 150), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+	else
+		draw.SimpleText("All downloads active", "DermaDefault", x + width/2, y, Color(150, 150, 150), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+	end
+end)
 
 return urlobj
