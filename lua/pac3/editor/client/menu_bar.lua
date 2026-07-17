@@ -157,7 +157,7 @@ local function populate_pac(menu)
 						popup_pref_mode:AddOption(L"cursor", function() RunConsoleCommand("pac_popups_preferred_location", "cursor") end):SetImage('icon16/mouse.png')
 						popup_pref_mode:AddOption(L"tracking cursor", function() RunConsoleCommand("pac_popups_preferred_location", "tracking cursor") end):SetImage('icon16/mouse_add.png')
 						popup_pref_mode:AddOption(L"screen", function() RunConsoleCommand("pac_popups_preferred_location", "screen") end):SetImage('icon16/monitor.png')
-					
+
 
 			pnl = experimentals:AddOption("Bulk Select : " .. (GetConVar("pac_bulk_select_key") and GetConVar("pac_bulk_select_key"):GetString() or "ctrl") .. " + click to select; operations are in the part menu") pnl:SetIcon("icon16/table_multiple.png") pnl:SetTooltip("Bulk Select selects multiple parts to do operations quickly.\nIt has an order. The order of selection can matter for some operations like Bulk Morph Property.")
 			pnl = experimentals:AddOption("Morph properties on bulk select", pace.BulkMorphProperty) pnl:SetIcon("icon16/chart_line.png") pnl:SetTooltip("Once you have selected parts with Bulk Select, set variables gradually.\nIt can achieve color fades across multiple parts.\nThe order of selection matters.")
@@ -193,14 +193,14 @@ end
 local function populate_options(menu)
 	menu:AddOption(L"settings", function() pace.OpenSettings() end)
 
-	local theme_menu, pnl = menu:AddSubMenu(L"Theme", function() end)
+	local theme_menu, pnl = menu:AddSubMenu(L"theme", function() end)
 	theme_menu.GetDeleteSelf = function() return false end
 	pnl:SetImage("icon16/color_swatch.png")
-	theme_menu:AddOption("Light (Default)", function() 
+	theme_menu:AddOption("Light (Default)", function()
 		RunConsoleCommand("pac_editor_theme", "default")
 		if IsValid(pace.Editor) then pace.Editor:SetSkin("default") end
 	end):SetImage("icon16/lightbulb.png")
-	theme_menu:AddOption("Dark (Modern)", function() 
+	theme_menu:AddOption("Dark (Modern)", function()
 		RunConsoleCommand("pac_editor_theme", "pac3_dark")
 		if IsValid(pace.Editor) then pace.Editor:SetSkin("pac3_dark") end
 	end):SetImage("icon16/lightbulb_off.png")

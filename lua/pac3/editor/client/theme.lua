@@ -193,4 +193,75 @@ function SKIN:PaintCategoryButton(panel, w, h)
 	surface.DrawOutlinedRect(0, 0, w, h)
 end
 
-derma.DefineSkin("pac3_dark", "PAC3 Dark Theme", SKIN)
+function SKIN:PaintTree(panel, w, h)
+	surface.SetDrawColor(bg_dark)
+	surface.DrawRect(0, 0, w, h)
+end
+
+function SKIN:PaintTreeNode(panel, w, h)
+	-- transparency thing
+end
+
+function SKIN:PaintTreeNodeButton(panel, w, h)
+	if panel.m_bSelected then
+		surface.SetDrawColor(highlight)
+		surface.DrawRect(0, 0, w, h)
+	elseif panel.Hovered then
+		surface.SetDrawColor(bg_light)
+		surface.DrawRect(0, 0, w, h)
+	end
+end
+
+function SKIN:PaintMenuBar(panel, w, h)
+	surface.SetDrawColor(bg_dark)
+	surface.DrawRect(0, 0, w, h)
+	surface.SetDrawColor(border)
+	surface.DrawLine(0, h-1, w, h-1)
+end
+
+derma.DefineSkin("pac3_dark", "PAC3's dark theme", SKIN)
+
+local dark_skin = derma.GetSkinTable()["pac3_dark"]
+if dark_skin then
+	dark_skin.tex = dark_skin.tex or {}
+	dark_skin.tex.CategoryList = dark_skin.tex.CategoryList or {}
+	dark_skin.tex.CategoryList.Outer = function(x, y, w, h)
+		surface.SetDrawColor(bg_dark)
+		surface.DrawRect(x, y, w, h)
+	end
+	dark_skin.tex.CategoryList.Header = function(x, y, w, h)
+		surface.SetDrawColor(bg_mid)
+		surface.DrawRect(x, y, w, h)
+		surface.SetDrawColor(border)
+		surface.DrawOutlinedRect(x, y, w, h)
+	end
+	dark_skin.tex.Menu_Strip = function(x, y, w, h)
+		surface.SetDrawColor(bg_dark)
+		surface.DrawRect(x, y, w, h)
+	end
+	dark_skin.tex.Tab_Control = function(x, y, w, h)
+		surface.SetDrawColor(bg_dark)
+		surface.DrawRect(x, y, w, h)
+	end
+	dark_skin.tex.Scroller = dark_skin.tex.Scroller or {}
+	dark_skin.tex.Scroller.TrackH = function(x, y, w, h)
+		surface.SetDrawColor(bg_dark)
+		surface.DrawRect(x, y, w, h)
+	end
+	dark_skin.tex.Scroller.ButtonH_Normal = function(x, y, w, h)
+		surface.SetDrawColor(bg_mid)
+		surface.DrawRect(x, y, w, h)
+	end
+	dark_skin.tex.Scroller.ButtonH_Hover = function(x, y, w, h)
+		surface.SetDrawColor(bg_light)
+		surface.DrawRect(x, y, w, h)
+	end
+	dark_skin.tex.Scroller.ButtonH_Down = function(x, y, w, h)
+		surface.SetDrawColor(highlight)
+		surface.DrawRect(x, y, w, h)
+	end
+	dark_skin.tex.Scroller.ButtonH_Disabled = function(x, y, w, h)
+		surface.SetDrawColor(bg_dark)
+		surface.DrawRect(x, y, w, h)
+	end
+end
