@@ -19,6 +19,7 @@ include("fonts.lua")
 include("settings.lua")
 include("shortcuts.lua")
 include("asset_browser.lua")
+include("theme.lua")
 include("menu_bar.lua")
 
 include("mctrl.lua")
@@ -50,6 +51,7 @@ local positionMode = CreateConVar("pac_editor_position_mode", "0", {FCVAR_ARCHIV
 local showCameras = CreateConVar("pac_show_cameras", "1", {FCVAR_ARCHIVE}, "Show the PAC cameras of players using the editor")
 local showInEditor = CreateConVar("pac_show_in_editor", "1", {FCVAR_ARCHIVE}, "Show the 'In PAC3 Editor' text above players using the editor")
 pace.pac_show_uniqueid = CreateConVar("pac_show_uniqueid", "0", {FCVAR_ARCHIVE}, "Show uniqueids of parts inside editor")
+local pac_editor_theme = CreateClientConVar("pac_editor_theme", "default", true)
 
 function pace.OpenEditor()
 	if not pac.LocalPlayer then pac.LocalPlayer = LocalPlayer() end
@@ -73,6 +75,12 @@ function pace.OpenEditor()
 			pace.CloseEditor()
 		end
 	pace.Editor = editor
+	
+	local theme = pac_editor_theme:GetString()
+	if theme and theme ~= "" and theme ~= "default" then
+		editor:SetSkin(theme)
+	end
+	
 	pace.Active = true
 
 	if remember:GetBool() then

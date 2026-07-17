@@ -193,6 +193,18 @@ end
 local function populate_options(menu)
 	menu:AddOption(L"settings", function() pace.OpenSettings() end)
 
+	local theme_menu, pnl = menu:AddSubMenu(L"Theme", function() end)
+	theme_menu.GetDeleteSelf = function() return false end
+	pnl:SetImage("icon16/color_swatch.png")
+	theme_menu:AddOption("Light (Default)", function() 
+		RunConsoleCommand("pac_editor_theme", "default")
+		if IsValid(pace.Editor) then pace.Editor:SetSkin("default") end
+	end):SetImage("icon16/lightbulb.png")
+	theme_menu:AddOption("Dark (Modern)", function() 
+		RunConsoleCommand("pac_editor_theme", "pac3_dark")
+		if IsValid(pace.Editor) then pace.Editor:SetSkin("pac3_dark") end
+	end):SetImage("icon16/lightbulb_off.png")
+
 	menu:AddOption("max undo history limit", function()
 		Derma_StringRequest("pac_editor_undo_limit", "set max undo history limit (default 30, lower = less memory usage)", tonumber(GetConVar("pac_editor_undo_limit"):GetString()) or 30,
 			function(val)
