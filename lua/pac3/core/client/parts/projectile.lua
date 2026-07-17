@@ -120,6 +120,13 @@ PART.Translucent = false
 
 function PART:OnShow(from_rendering)
 	if not from_rendering then
+		if self.projectile_pool then
+			for _, cached in ipairs(self.projectile_pool) do
+				if IsValid(cached.group) then cached.group:Remove() end
+			end
+			self.projectile_pool = {}
+		end
+
 		-- TODO:
 		-- this makes sure all the parents of this movable have an up-to-date draw position
 		-- GetBonePosition implicitly uses ent:GetPos() as the parent origin which is really bad,
@@ -156,13 +163,34 @@ function PART:AttachToEntity(ent, physical)
 
 	ent.pac_draw_distance = 0
 
-	local tbl = self.OutfitPart:ToTable()
+	self.projectile_pool = self.projectile_pool or {}
 
-	local group = pac.CreatePart("group", self:GetPlayerOwner())
-	group:SetShowInEditor(false)
+	local group
+	local part
 
-	local part = pac.CreatePart(tbl.self.ClassName, self:GetPlayerOwner(), tbl, tostring(tbl))
-	group:AddChild(part)
+	for i = #self.projectile_pool, 1, -1 do
+		local cached = self.projectile_pool[i]
+		if IsValid(cached.group) then
+			if not IsValid(cached.group:GetOwner()) or cached.group:GetOwner() == NULL then
+				group = cached.group
+				part = cached.part
+				table.remove(self.projectile_pool, i)
+				break
+			end
+		else
+			table.remove(self.projectile_pool, i)
+		end
+	end
+
+	if not group then
+		local tbl = self.OutfitPart:ToTable()
+
+		group = pac.CreatePart("group", self:GetPlayerOwner())
+		group:SetShowInEditor(false)
+
+		part = pac.CreatePart(tbl.self.ClassName, self:GetPlayerOwner(), tbl, tostring(tbl))
+		group:AddChild(part)
+	end
 
 	group:SetOwner(ent)
 	group.SetOwner = function(s) s.Owner = ent end
@@ -174,7 +202,17 @@ function PART:AttachToEntity(ent, physical)
 		id = id .. owner_id
 	end
 
-	ent:CallOnRemove("pac_projectile_" .. id, function() group:Remove() end)
+	ent:CallOnRemove("pac_projectile_" .. id, function() 
+		if IsValid(self) and IsValid(group) then
+			part:SetHide(true)
+			group.SetOwner = nil
+			group:SetOwner(NULL)
+			table.insert(self.projectile_pool, {group = group, part = part})
+		elseif IsValid(group) then
+			group:Remove()
+		end
+	end)
+	
 	group:CallRecursive("Think")
 
 	ent.RenderOverride = ent.RenderOverride or function()
@@ -521,6 +559,10 @@ end
 
 pac.AddHook("Think", "pac_cleanup_CS_projectiles", function()
 	for rootpart,ent in pairs(local_projectiles) do
+		if not IsValid(ent) then
+			local_projectiles[rootpart] = nil
+			continue
+		end
 		if ent.pac_projectile_part == rootpart then
 			local tbl = ent.pac_projectile_part:GetChildren()
 			local partchild = tbl[next(tbl)] --ent.pac_projectile_part is the root group, but outfit part is the first child

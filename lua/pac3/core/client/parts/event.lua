@@ -9,6 +9,16 @@ local util = util
 local SysTime = SysTime
 local table_insert = table.insert
 
+local shared_trace_line = {}
+local shared_trace_hull = {}
+local shared_trace_hull_filter = {}
+local shared_vec1 = Vector()
+local shared_vec2 = Vector()
+local shared_mins = Vector()
+local shared_maxs = Vector()
+local shared_draw_matrix = Matrix()
+local shared_draw_vec1 = Vector()
+local shared_draw_vec2 = Vector()
 local BUILDER, PART = pac.PartTemplate("base")
 
 PART.ClassName = "event"
@@ -1345,13 +1355,18 @@ PART.OldEvents = {
 		callback = function(self, ent, exclude_noclip, surfaces, down)
 			surfaces = surfaces or ""
 			if exclude_noclip and ent:GetMoveType() == MOVETYPE_NOCLIP then return false end
-			local trace = util.TraceLine( {
-				start = self:GetRootPart():GetOwner():GetPos() + Vector( 0, 0, 10),
-				endpos = self:GetRootPart():GetOwner():GetPos() + Vector( 0, 0, -30 ),
-				filter = function(ent)
-					if ent == self:GetRootPart():GetOwner() or ent == self:GetPlayerOwner() then return false end
-				end
-			})
+			shared_vec1:Set(self:GetRootPart():GetOwner():GetPos())
+			shared_vec1.z = shared_vec1.z + 10
+			shared_vec2:Set(self:GetRootPart():GetOwner():GetPos())
+			shared_vec2.z = shared_vec2.z - 30
+
+			shared_trace_line.start = shared_vec1
+			shared_trace_line.endpos = shared_vec2
+			shared_trace_line.filter = function(e)
+				if e == self:GetRootPart():GetOwner() or e == self:GetPlayerOwner() then return false end
+			end
+
+			local trace = util.TraceLine(shared_trace_line)
 			local found = false
 			if trace.Hit then
 				local surfs = string.Split(surfaces,";")
@@ -1373,17 +1388,27 @@ PART.OldEvents = {
 			local rad = ent:BoundingRadius() / 2
 			local times = 2
 
+			shared_trace_line.filter = ent
+
 			for x = -times, times do
 				for y = -times, times do
-					local xy = Vector(x/times,y/times,0) * rad
-					local res = util.TraceLine({
-						start = ent:GetPos() + xy + Vector(0,0,2.5),
-						endpos = ent:GetPos() + xy/1.25 + Vector(0,0,-10),
-						--mins = ent:OBBMins(),
-						--maxs = ent:OBBMaxs(),
-						filter = ent,
-						--mask = MASK_SOLID_BRUSHONLY,
-					})
+					local xyr = (x/times) * rad
+					local yyr = (y/times) * rad
+
+					shared_vec1:Set(ent:GetPos())
+					shared_vec1.x = shared_vec1.x + xyr
+					shared_vec1.y = shared_vec1.y + yyr
+					shared_vec1.z = shared_vec1.z + 2.5
+
+					shared_vec2:Set(ent:GetPos())
+					shared_vec2.x = shared_vec2.x + xyr/1.25
+					shared_vec2.y = shared_vec2.y + yyr/1.25
+					shared_vec2.z = shared_vec2.z - 10
+
+					shared_trace_line.start = shared_vec1
+					shared_trace_line.endpos = shared_vec2
+
+					local res = util.TraceLine(shared_trace_line)
 					if res.Hit and math.abs(res.HitNormal.z) > 0.70 then return true end
 				end
 			end
@@ -1411,20 +1436,20 @@ PART.OldEvents = {
 
 			radius = math.max(radius + extra_radius + 1, 1)
 
-			local mins = Vector(-1,-1,-1)
-			local maxs = Vector(1,1,1)
+			shared_mins:SetUnpacked(-radius, -radius, -radius)
+			shared_maxs:SetUnpacked(radius, radius, radius)
 			local startpos = ent:WorldSpaceCenter()
-			mins = mins * radius
-			maxs = maxs * radius
 
+			shared_trace_hull_filter[1] = ent
+			shared_trace_hull_filter[2] = self:GetRootPart():GetOwner()
 
-			local tr = util.TraceHull( {
-				start = startpos,
-				endpos = startpos,
-				maxs = maxs,
-				mins = mins,
-				filter = {ent, self:GetRootPart():GetOwner()}
-			})
+			shared_trace_hull.start = startpos
+			shared_trace_hull.endpos = startpos
+			shared_trace_hull.maxs = shared_maxs
+			shared_trace_hull.mins = shared_mins
+			shared_trace_hull.filter = shared_trace_hull_filter
+
+			local tr = util.TraceHull(shared_trace_hull)
 
 			return tr.Hit
 		end,
@@ -4573,10 +4598,14 @@ do
 			self.grow = self.grow*0.9 + grow -- Framerate will affect this effect's speed but oh well
 
 			local scale = gScale*(1 + self.grow*0.2)
-			local m = Matrix()
-			m:SetTranslation(Vector(scrw2, scrh2, 0))
-			m:Scale(Vector(scale, scale, scale))
-			cam.PushModelMatrix(m)
+			
+			shared_draw_matrix:Identity()
+			shared_draw_vec1:SetUnpacked(scrw2, scrh2, 0)
+			shared_draw_matrix:SetTranslation(shared_draw_vec1)
+			shared_draw_vec2:SetUnpacked(scale, scale, scale)
+			shared_draw_matrix:Scale(shared_draw_vec2)
+			
+			cam.PushModelMatrix(shared_draw_matrix)
 
 			local x, y = self.x*radius, self.y*radius
 

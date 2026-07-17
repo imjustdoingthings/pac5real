@@ -107,7 +107,11 @@ function PART:OnDraw()
 	self.pos = self.pos or pos * 1
 
 	if self.StopRadius ~= 0 and self.pos and self.pos:DistToSqr(pos) < (self.StopRadius * self.StopRadius) then
-		self.vel = Vector()
+		if self.vel then
+			self.vel:SetUnpacked(0,0,0)
+		else
+			self.vel = Vector(0,0,0)
+		end
 		return
 	end
 
@@ -122,7 +126,10 @@ function PART:OnDraw()
 			self.vel.x = self.vel.x + (pos.x - self.pos.x)
 
 			if self.LocalVelocity then
-				self.vel = self.vel + ang:Right() * self.ConstantVelocity.x
+				local right = ang:Right()
+				self.vel.x = self.vel.x + right.x * self.ConstantVelocity.x
+				self.vel.y = self.vel.y + right.y * self.ConstantVelocity.x
+				self.vel.z = self.vel.z + right.z * self.ConstantVelocity.x
 			else
 				self.vel.x = self.vel.x + self.ConstantVelocity.x
 			end
@@ -137,7 +144,10 @@ function PART:OnDraw()
 			self.vel.y = self.vel.y + (pos.y - self.pos.y)
 
 			if self.LocalVelocity then
-				self.vel = self.vel + ang:Forward() * self.ConstantVelocity.y
+				local fwd = ang:Forward()
+				self.vel.x = self.vel.x + fwd.x * self.ConstantVelocity.y
+				self.vel.y = self.vel.y + fwd.y * self.ConstantVelocity.y
+				self.vel.z = self.vel.z + fwd.z * self.ConstantVelocity.y
 			else
 				self.vel.y = self.vel.y + self.ConstantVelocity.y
 			end
@@ -152,7 +162,10 @@ function PART:OnDraw()
 			self.vel.z = self.vel.z + (pos.z - self.pos.z)
 
 			if self.LocalVelocity then
-				self.vel = self.vel + ang:Up() * self.ConstantVelocity.z
+				local up = ang:Up()
+				self.vel.x = self.vel.x + up.x * self.ConstantVelocity.z
+				self.vel.y = self.vel.y + up.y * self.ConstantVelocity.z
+				self.vel.z = self.vel.z + up.z * self.ConstantVelocity.z
 			else
 				self.vel.z = self.vel.z + self.ConstantVelocity.z
 			end
@@ -171,9 +184,17 @@ function PART:OnDraw()
 	end
 
 	if self.ConstrainSphere > 0 then
-		local diff = self.pos - pos
+		local dx = self.pos.x - pos.x
+		local dy = self.pos.y - pos.y
+		local dz = self.pos.z - pos.z
+		local len = math.sqrt(dx*dx + dy*dy + dz*dz)
 
-		self.pos = pos + (diff:GetNormalized() * math.min(diff:Length(), self.ConstrainSphere))
+		if len > 0 then
+			local m = math.min(len, self.ConstrainSphere) / len
+			self.pos.x = pos.x + dx * m
+			self.pos.y = pos.y + dy * m
+			self.pos.z = pos.z + dz * m
+		end
 	end
 
 	if self.JiggleAngle then

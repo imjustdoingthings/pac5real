@@ -473,6 +473,8 @@ end
 local matrix = Matrix()
 local _self, _ent, _pos, _ang
 
+local temp_scale = Vector(1, 1, 1)
+
 local function ent_draw_model(self, ent, pos, ang)
 	if self.obj_mesh then
 		ent:SetModelScale(0.001, 0)
@@ -481,7 +483,8 @@ local function ent_draw_model(self, ent, pos, ang)
 		matrix:Identity()
 		matrix:SetAngles(ang)
 		matrix:SetTranslation(pos)
-		matrix:SetScale(self.Scale * self.Size)
+		temp_scale:SetUnpacked(self.Scale[1] * self.Size, self.Scale[2] * self.Size, self.Scale[3] * self.Size)
+		matrix:SetScale(temp_scale)
 
 		cam_PushModelMatrix(matrix)
 			self.obj_mesh:Draw()
@@ -631,7 +634,8 @@ local function RealDrawModel(self, ent, pos, ang)
 		if ent.pac_model_scale then
 			temp_realdraw_matrix:Scale(ent.pac_model_scale)
 		else
-			temp_realdraw_matrix:Scale(self.Scale * self.Size)
+			temp_scale:SetUnpacked(self.Scale[1] * self.Size, self.Scale[2] * self.Size, self.Scale[3] * self.Size)
+			temp_realdraw_matrix:Scale(temp_scale)
 		end
 
 		cam_PushModelMatrix(temp_realdraw_matrix)
