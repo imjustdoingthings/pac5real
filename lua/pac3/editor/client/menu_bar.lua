@@ -202,6 +202,15 @@ local function populate_options(menu)
 			end)
 	end):SetImage("icon16/arrow_undo.png")
 
+	menu:AddOption(L"max concurrent downloads", function()
+		Derma_StringRequest("pac_objdl_streams", "set max concurrent model downloads (default 4, higher = faster fetching)", tonumber(GetConVar("pac_objdl_streams"):GetString()) or 4,
+			function(val)
+				if isnumber(tonumber(val)) then
+					GetConVar("pac_objdl_streams"):SetString(val)
+				end
+			end)
+	end):SetImage("icon16/server_connect.png")
+
 	menu:AddCVar(L"Keyboard shortcuts: Legacy mode", "pac_editor_shortcuts_legacy_mode", "1", "0")
 	local tree, pnl = menu:AddSubMenu(L"tree config", function() end)
 		tree.GetDeleteSelf = function() return false end
