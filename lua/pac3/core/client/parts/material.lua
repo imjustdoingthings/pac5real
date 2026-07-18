@@ -292,8 +292,12 @@ for shader_name, groups in pairs(shader_params.shaders) do
 					end
 				elseif isbool(val) or info.type == "bool" then
 					table_insert(out, '\t' .. key .. ' ' .. (val and "1" or "0"))
-				else
+				elseif info.type == "vec4" then
+					table_insert(out, '\t' .. key .. ' "' .. tostring(val) .. '"')
+				elseif isnumber(val) then
 					table_insert(out, '\t' .. key .. ' ' .. tostring(val))
+				else
+					table_insert(out, '\t' .. key .. ' "' .. tostring(val) .. '"')
 				end
 			end
 		end
