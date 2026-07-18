@@ -3966,10 +3966,19 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 			pac.Message("VMT exported to data/" .. path)
 		end):SetIcon("icon16/disk.png")
 
-		export_submenu:AddOption("To custom path...", function()
+		export_submenu:AddOption("to custom path...", function()
 			local vmt_str = obj:GetVmtString()
-			Derma_StringRequest("to custom path", "enter file path (can only be relative to garrysmod/data/)", "pac3/my_material.vmt", function(path)
+			-- strip illegal characters from the default name
+			local default = obj:GetName():gsub("[\\/|:?\"<>*]", "")
+			local default_path = "pac3/vmt_exports/" .. default
+			if pace.VmtExport_include_datetime then
+				default_path = default_path .. "_" .. os.date("%Y%m%d_%H%M%S")
+			end
+			default_path = default_path .. ".vmt"
+			Derma_StringRequest("export VMT to custom path", "enter file path (can only be relative to garrysmod/data/)", default_path, function(path)
 				if path == "" then return end
+				-- strip characters that are illegal for file paths
+				path = path:gsub("[|:?\"<>*]", "")
 				if string.sub(path, -4) ~= ".vmt" then path = path .. ".vmt" end
 				local dir = string.GetPathFromFilename(path)
 				if dir ~= "" then file.CreateDir(dir) end
