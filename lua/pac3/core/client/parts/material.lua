@@ -130,10 +130,13 @@ for shader_name, groups in pairs(shader_params.shaders) do
 	function PART:ImportVmt(str, name, silent)
 		if not str or str == "" then return false end
 		-- preprocess booleans vmt values like additive and nodraw to add " 1" to valueless flags
+		str = str:gsub("\r", "")
 		local lines = string.Explode("\n", str)
 		for i = 1, #lines do
 			local line = lines[i]:Trim()
-			if line:match("^%$[%w_]+$") or line:match("^\"%$[%w_]+\"$") then lines[i] = lines[i] .. " 1" end
+			local comment_idx = line:find("//", nil, true)
+			if comment_idx then line = line:sub(1, comment_idx - 1):Trim() end
+			if line:match("^%$[%w_]+$") or line:match("^\"%$[%w_]+\"$") then lines[i] = line .. " 1" end
 		end
 		str = table.concat(lines, "\n")
 
