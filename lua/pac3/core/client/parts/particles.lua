@@ -34,6 +34,11 @@ BUILDER:StartStorableVars()
 		BUILDER:GetSet("FireDuration", 0, {description = "how long to fire particles\n0 = infinite"})
 		BUILDER:GetSet("Decay", 0, {description = "rate of decay for particle count, in particles per second\n0 = no decay\na positive number means simple decay starting at showtime\na negative number means delayed decay so that it reaches 0 at the time of 'fire duration'"})
 		BUILDER:GetSet("FractionalChance", false, {description = "If 'number particles' has decimals, there is a chance to emit another particle\ne.g. 0.5 is 50% chance to emit a particle\ne.g. 1.25 is 25% chance to fire two / 75% to fire one particle)"})
+		BUILDER:GetSet("SpawnOnMesh", false, {description = "Spawns particles across the triangles/faces of the owner's model. This works based on the default model's resting pose (so, the T-pose); it won't follow any animations."})
+		BUILDER:GetSet("SpawnOnBones", false, {description = "Randomly distributes particles across the owner's animated bones/hitboxes. Functionally, this is an alternative for spawning particles on a mesh, but it inherently sacrifices control."})
+	BUILDER:SetPropertyGroup("mesh particles")
+		BUILDER:GetSet("MeshParticle", false, {description = "Use 3D models as particles instead of 2D sprites. However, there is a hard ca to 100 max active particles at a time."})
+		BUILDER:GetSet("ParticleModel", "models/props_junk/watermelon01.mdl", {editor_panel = "model"})
 	BUILDER:SetPropertyGroup("stick")
 		BUILDER:GetSet("AlignToSurface", true, {description = "requires 3D set to true"})
 		BUILDER:GetSet("StickToSurface", true, {description = "requires 3D set to true, and sliding set to false"})
@@ -50,6 +55,7 @@ BUILDER:StartStorableVars()
 		BUILDER:GetSet("Color2", Vector(255, 255, 255), {editor_panel = "color"})
 		BUILDER:GetSet("Color1", Vector(255, 255, 255), {editor_panel = "color"})
 		BUILDER:GetSet("RandomColor", false)
+		BUILDER:GetSet("ColorRamp", false, {description = "Linear interpolation of particle colors from Color1 to Color2 over the particle's lifetime."})
 		BUILDER:GetSet("Lighting", true)
 		BUILDER:GetSet("3D", false, {description = "The particles are oriented relative to the part instead of the viewer.\nYou might want to set zero angle to false if you use this."})
 		BUILDER:GetSet("DoubleSided", true)
@@ -218,7 +224,67 @@ function PART:OnDraw()
 			self.nodraw = false
 		end
 	end
+	if self.MeshParticlesList then
+		local frametime_val = FrameTime()
+		for i = #self.MeshParticlesList, 1, -1 do
+			local p = self.MeshParticlesList[i]
+			if CurTime() > p.life or not IsValid(p.ent) then
+				if IsValid(p.ent) then SafeRemoveEntity(p.ent) end
+				table.remove(self.MeshParticlesList, i)
+			else
+				local frac = math.Clamp(1 - ((p.life - CurTime()) / p.die_time), 0, 1)
+				p.vel = p.vel + (p.gravity * frametime_val)
+				if p.air_res > 0 then p.vel = p.vel - (p.vel * p.air_res * frametime_val) end
+
+				local oldpos = p.ent:GetPos()
+				local newpos = oldpos + p.vel * frametime_val
+
+				if p.collide then
+					local tr = util.TraceLine({start = oldpos, endpos = newpos, filter = p.ent})
+					if tr.Hit then
+						newpos = tr.HitPos + tr.HitNormal
+						if p.sliding then
+							p.vel.z = 0
+							p.bounce = 1
+						else
+							p.vel = p.vel * -p.bounce
+						end
+					end
+				end
+				p.ent:SetPos(newpos)
+
+				local c1r, c1g, c1b = p.color1.r, p.color1.g, p.color1.b
+				local c2r, c2g, c2b = p.color2.r, p.color2.g, p.color2.b
+				p.ent:SetColor(Color(Lerp(frac, c1r, c2r), Lerp(frac, c1g, c2g), Lerp(frac, c1b, c2b)))
+
+				local size = math.max(Lerp(frac, p.start_size, p.end_size) / 20, 0.001)
+				local mat = Matrix()
+				mat:Scale(Vector(size, size, size))
+				p.ent:EnableMatrix("RenderMultiply", mat)
+
+				if self.Follow then
+					cam.Start3D(WorldToLocal(EyePos(), EyeAngles(), pos, ang))
+					if self.IgnoreZ then cam.IgnoreZ(true) end
+					p.ent:DrawModel()
+					if self.IgnoreZ then cam.IgnoreZ(false) end
+					cam.End3D()
+				else
+					p.ent:DrawModel()
+				end
+			end
+		end
+	end
+
 	self:EmitParticles(self.Follow and vector_origin or pos, self.Follow and angle_origin or ang, ang)
+end
+function PART:OnRemove()
+	if self.MeshParticlesList then
+		for i = 1, #self.MeshParticlesList do
+			local p = self.MeshParticlesList[i]
+			if IsValid(p.ent) then SafeRemoveEntity(p.ent) end
+		end
+		self.MeshParticlesList = nil
+	end
 end
 
 function PART:SetAdditive(b)
@@ -308,6 +374,48 @@ function PART:EmitParticles(pos, ang, real_ang)
 
 			local roll = math.Rand(-self.RollDelta, self.RollDelta)
 			local particle_pos = base_pos
+			if self.SpawnOnBones then
+				local owner = self:GetOwner()
+				if IsValid(owner) and owner.GetBoneCount then
+					local count = owner:GetBoneCount()
+					if count and count > 0 then
+						local bone = math.random(0, count - 1)
+						local bpos = owner:GetBonePosition(bone)
+						if bpos then particle_pos = bpos end
+					end
+				end
+			elseif self.SpawnOnMesh then
+				local owner = self:GetOwner()
+				if IsValid(owner) and owner:GetModel() then
+					local mdl = owner:GetModel()
+					if not pac.MeshTriangles then pac.MeshTriangles = {} end
+					if not pac.MeshTriangles[mdl] then
+						local meshes = util.GetModelMeshes(mdl)
+						local tris = {}
+						if meshes then
+							for i = 1, #meshes do
+								local m = meshes[i]
+								if m.triangles then
+									for i = 1, #m.triangles, 3 do
+										if m.triangles[i] and m.triangles[i+1] and m.triangles[i+2] then
+											table.insert(tris, {m.triangles[i].pos, m.triangles[i+1].pos, m.triangles[i+2].pos})
+										end
+									end
+								end
+							end
+						end
+						pac.MeshTriangles[mdl] = tris
+					end
+					local tris = pac.MeshTriangles[mdl]
+					if tris and #tris > 0 then
+						local tri = tris[math.random(1, #tris)]
+						local r1, r2 = math.random(), math.random()
+						if r1 + r2 > 1 then r1 = 1 - r1; r2 = 1 - r2 end
+						local lpos = tri[1] + (tri[2] - tri[1]) * r1 + (tri[3] - tri[1]) * r2
+						particle_pos = owner:LocalToWorld(lpos)
+					end
+				end
+			end
 
 			if self.PositionSpread ~= 0 then
 				particle_pos = particle_pos + Angle(math.Rand(-180, 180), math.Rand(-180, 180), math.Rand(-180, 180)):Forward() * self.PositionSpread
@@ -322,7 +430,38 @@ function PART:EmitParticles(pos, ang, real_ang)
 				vecAdd:Rotate(originalAng)
 				particle_pos = particle_pos + vecAdd
 			end
+			if self.MeshParticle and self.ParticleModel ~= "" then
+				self.MeshParticlesList = self.MeshParticlesList or {}
+				if #self.MeshParticlesList < 100 then
+					local ent_model = ClientsideModel(self.ParticleModel)
+					if IsValid(ent_model) then
+						ent_model:SetNoDraw(true)
+						ent_model:SetPos(particle_pos)
+						ent_model:SetAngles(ang:Angle())
 
+						local life = math.Clamp(self.DieTime, 0.0001, 50)
+						if self.AddFrametimeLife then life = life + frametime_val end
+
+						table.insert(self.MeshParticlesList, {
+							ent = ent_model,
+							vel = (vec + ang) * self.Velocity,
+							life = CurTime() + life,
+							start_time = CurTime(),
+							die_time = life,
+							gravity = self.Gravity,
+							bounce = self.Bounce,
+							air_res = self.AirResistance,
+							collide = self.Collide,
+							sliding = self.Sliding,
+							start_size = self.StartSize,
+							end_size = self.EndSize,
+							color1 = self.Color1,
+							color2 = self.ColorRamp and self.Color2 or self.Color1
+						})
+					end
+				end
+				continue
+			end
 			for i = 1, double do
 				local particle = emt:Add(self.Materialm or self.Material, particle_pos)
 
@@ -348,6 +487,20 @@ function PART:EmitParticles(pos, ang, real_ang)
 
 				particle:SetVelocity((vec + ang) * self.Velocity)
 				particle:SetColor(r, g, b)
+				if self.ColorRamp then
+					local c1r, c1g, c1b = self.Color1.r, self.Color1.g, self.Color1.b
+					local c2r, c2g, c2b = self.Color2.r, self.Color2.g, self.Color2.b
+					particle:SetThinkFunction(function(p)
+						local p_life = p:GetLifeTime()
+						local p_die = p:GetDieTime()
+						if p_die > 0 then
+							local frac = math.Clamp(p_life / p_die, 0, 1)
+							p:SetColor(Lerp(frac, c1r, c2r), Lerp(frac, c1g, c2g), Lerp(frac, c1b, c2b))
+						end
+						p:SetNextThink(CurTime())
+					end)
+					particle:SetNextThink(CurTime())
+				end
 
 				local life = math.Clamp(self.DieTime, 0.0001, 50)
 				if self.AddFrametimeLife then
