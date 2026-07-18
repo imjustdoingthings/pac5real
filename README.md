@@ -1,8 +1,10 @@
-# PAC3
+# PAC5 (real)
+
+Independent fork of PAC3/PAC4.5 where I just sort of do my own thing. Conglomeration of patches, some old code from other forks/tests, other addons' code, etc.
 
 ---
 
-PAC3 gives you the ability to personalize your player model's look by placing objects and effects on yourself. You can go from putting just a hat on your head to creating an entire new player model. PAC works on any entity and can also be used as a way to make custom weapons and npcs for your gamemode easily. 
+PAC gives you the ability to personalize your player model's look by placing objects and effects on yourself. You can go from putting just a hat on your head to creating an entire new player model. PAC works on any entity and can also be used as a way to make custom weapons and npcs for your gamemode easily. 
 
 You can wear your outfit on any server with PAC3 and everyone should be able to see it on you as long as they have the content you used.
 
