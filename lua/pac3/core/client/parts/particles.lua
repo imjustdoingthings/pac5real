@@ -517,7 +517,7 @@ function PART:EmitParticles(pos, ang, real_ang)
 			end
 			if self.MeshParticle then
 				local model_path = self.ParticleModel
-				if (model_path == "" or model_path == "models/props_junk/watermelon01.mdl") and IsValid(spawn_owner) and spawn_owner:GetModel() then
+				if model_path == "" and IsValid(spawn_owner) and spawn_owner:GetModel() then
 					if target_part and target_part:GetOwner() ~= self:GetPlayerOwner() then
 						model_path = spawn_owner:GetModel()
 					end
