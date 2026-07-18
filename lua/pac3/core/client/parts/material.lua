@@ -41,6 +41,8 @@ local material_flags = {
 	ignore_alpha_modulation = bit.lshift(1, 30),
 }
 
+local update_submaterial
+
 local function TableToFlags(flags, valid_flags)
 	if isstring(flags) then
 		flags = {flags}
@@ -184,13 +186,14 @@ for shader_name, groups in pairs(shader_params.shaders) do
 		local errors = {"cannot convert material parameter:"}
 		self:SetCustomVmtFlags("")
 		for k,v in pairs(inner_vmt) do
-			if type(k) == "string" then -- prevent constant  errors
+			if type(k) == "string" then
 				local orig_k = k
-				if k:StartWith("$") then k = k:sub(2) end
+				local clean_k = k
+				if k:StartWith("$") then clean_k = k:sub(2) end
 
-				local func = self["Set" .. k]
+				local func = self["Set" .. clean_k]
 				if func then
-					local info = PART.ShaderParams[k]
+					local info = PART.ShaderParams[clean_k]
 
 					if isstring(v) then
 						if tonumber(v) then
@@ -218,9 +221,9 @@ for shader_name, groups in pairs(shader_params.shaders) do
 
 					func(self, v)
 				else
-					table.insert(errors,k)
+					table.insert(errors,clean_k)
 					if dump_vmt_when_load_vmt:GetInt() == 2 and not silent then
-						pac.Message("cannot convert material parameter " .. k)
+						pac.Message("cannot convert material parameter " .. clean_k)
 					end
 					local line = (orig_k:StartWith("$") and orig_k or "$" .. orig_k) .. " \"" .. tostring(v) .. "\""
 					local current_flags = self:GetCustomVmtFlags() or ""
@@ -313,7 +316,7 @@ for shader_name, groups in pairs(shader_params.shaders) do
 		return tbl
 	end})
 
-	local function update_submaterial(self, remove, parent)
+	update_submaterial = function(self, remove, parent)
 		pac.RunNextFrameSimple(function()
 			if not IsValid(self) and not remove then return end
 			local name = self:GetName()
