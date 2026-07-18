@@ -173,18 +173,18 @@ for shader_name, groups in pairs(shader_params.shaders) do
 					self:SetNotes("last loaded VMT: " .. name)
 				end
 			end
-
-			--  this should hopefully avoid resetting absolutely every value, which was what happened earlier
-			for k,v in pairs(self:GetVars()) do
-				local param = PART.ShaderParams[k]
-				if param and param.default ~= nil then
-					self["Set" .. k](self, param.default)
-				end
-				if param and param.type == "texture" then
-					self["Set" .. k](self, "")
-				end
+		end
+		for k,v in pairs(self:GetVars()) do
+			local param = PART.ShaderParams[k]
+			if param and param.default ~= nil then
+				self["Set" .. k](self, param.default)
 			end
+			if param and param.type == "texture" then
+				self["Set" .. k](self, "")
+			end
+		end
 
+		if not silent then
 			if dump_vmt_when_load_vmt:GetInt() == 1 then
 				print("====== VMT loaded: " .. (name or "raw string"))
 			elseif dump_vmt_when_load_vmt:GetInt() == 2 then
