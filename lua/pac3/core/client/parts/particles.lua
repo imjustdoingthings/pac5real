@@ -661,11 +661,26 @@ function PART:EmitParticles(pos, ang, real_ang)
 						if r1 + r2 > 1 then r1 = 1 - r1; r2 = 1 - r2 end
 						local lpos = tri[1] + (tri[2] - tri[1]) * r1 + (tri[3] - tri[1]) * r2
 						-- apply target part scale if applicable
-						if target_part then
-							local scale = target_part.Scale or Vector(1, 1, 1)
+						local scale = Vector(1, 1, 1)
+						if IsValid(spawn_owner) and spawn_owner.pac_model_scale then
+							scale = spawn_owner.pac_model_scale
+						elseif target_part then
+							local s = target_part.Scale or Vector(1, 1, 1)
 							local size = target_part.Size or 1
-							lpos = lpos * (scale * size)
+							scale = s * size
+						else
+							local parent = self:GetParent()
+							if parent and parent.Scale and parent.Size then
+								scale = parent.Scale * parent.Size
+							end
 						end
+						
+						if scale == Vector(1, 1, 1) and IsValid(spawn_owner) and spawn_owner.GetModelScale then
+							local s = spawn_owner:GetModelScale()
+							scale = Vector(s, s, s)
+						end
+
+						lpos = lpos * scale
 						particle_pos = spawn_owner:LocalToWorld(lpos)
 					end
 				end
