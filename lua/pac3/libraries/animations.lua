@@ -275,6 +275,8 @@ local function AdvanceFrame(tGestureTable, tFrameData)
 		return true
 	end
 
+	if tFrameData == nil then return false end
+
 	tGestureTable.FrameDelta = tGestureTable.FrameDelta + FrameTime() * tFrameData.FrameRate * tGestureTable.TimeScale
 
 	if tGestureTable.FrameDelta > 1 then
