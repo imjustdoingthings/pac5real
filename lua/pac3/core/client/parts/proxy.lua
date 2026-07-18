@@ -60,7 +60,7 @@ BUILDER:StartStorableVars()
 		BUILDER:GetSet("Extra4", "", {description = "Write extra math here.\nIt computes before the main expression and can be accessed from the main expression as extra4() or var4() to save space, or by another proxy as extra4(\"uid or name\") or var4(\"uid or name\")", editor_panel = "code_proxy"})
 		BUILDER:GetSet("Extra5", "", {description = "Write extra math here.\nIt computes before the main expression and can be accessed from the main expression as extra5() or var5() to save space, or by another proxy as extra5(\"uid or name\") or var5(\"uid or name\")", editor_panel = "code_proxy"})
 BUILDER:EndStorableVars()
-jit.on()
+
 -- redirect
 function PART:SetOutputTargetPart(part)
 	if not part:IsValid() then return end
@@ -103,32 +103,27 @@ function PART:GetTarget()
 end
 
 function PART:GetOrFindCachedPart(uid_or_name)
-	--if self.bad_uid_search then self:SetInfo(self.bad_uid_search) end
 	local part = nil
 	self.erroring_cached_parts = {}
 	self.found_cached_parts = self.found_cached_parts or {}
 	if self.found_cached_parts[uid_or_name] then self.erroring_cached_parts[uid_or_name] = nil return self.found_cached_parts[uid_or_name] end
-	--if self.erroring_cached_parts[uid_or_name] then return end
 	if self.bad_uid_search and self.bad_uid_search > 250 then
 		return
 	end
 
 	local owner = self:GetPlayerOwner()
-
 	part = pac.GetPartFromUniqueID(pac.Hash(owner), uid_or_name) or pac.FindPartByPartialUniqueID(pac.Hash(owner), uid_or_name)
-	if not part:IsValid() then
+	if not IsValid(part) then
 		part = pac.FindPartByName(pac.Hash(owner), uid_or_name, self)
 	else
 		self.found_cached_parts[uid_or_name] = part
 		return part
 	end
-	if not part:IsValid() then
+	if not IsValid(part) then
 		self.erroring_cached_parts[uid_or_name] = true
 		self.bad_uid_search = self.bad_uid_search or 0
 		self.bad_uid_search = self.bad_uid_search + 1
 		if self:GetPlayerOwner() == LocalPlayer() and not pace.still_loading_wearing and self.bad_uid_search > 2 then
-			self:SetWarning("Problem reported")
-			pace.ReportProblem(self.UniqueID, {part = self, description = "<reference error> part failed to find " .. uid_or_name, solution = "create such part and reassign, or remove the reference"})
 			pace.FlashNotification("performance warning! " .. tostring(self) .. " keeps searching for parts not finding anything! " .. tostring(uid_or_name) .. " may be unused!")
 		end
 	else
@@ -207,11 +202,9 @@ function PART:GetNiceName()
 end
 
 function PART:Initialize()
-	self.checkpoints = {}
 	self.vec_additive = {}
 	self.next_vel_calc = 0
 	self.invalid_parts_in_expression = {}
-	self.valid_parts_in_expression = {}
 	if self:GetPlayerOwner() == pac.LocalPlayer then
 		self.errors_override = true
 		timer.Simple(5, function() self.errors_override = false end) --initialize hack to stop erroring when referenced parts aren't created yet but will be created shortly
@@ -290,8 +283,6 @@ end
 
 PART.Inputs = {}
 
-PART.Inputs.Vector = function(self, x,y,z) return Vector(x,y,z) end
-
 PART.Inputs.property = function(self, property_name, field, uid)
 
 	local part = self.TargetEntity:IsValid() and self.TargetEntity or self:GetParent()
@@ -332,18 +323,6 @@ PART.Inputs.polynomial = function(self, x, ...)
 	end
 	return total
 
-end
-
-PART.Inputs.owner_position_vec = function(self)
-	local owner = get_owner(self)
-
-	if owner:IsValid() then
-		local pos = owner:GetPos()
-
-		return pos
-	end
-
-	return Vector(0,0,0)
 end
 
 PART.Inputs.owner_position = function(self)
@@ -493,7 +472,7 @@ PART.Inputs.sample_and_hold = function(self, seed, duration, min, max, ease)
 		self.samplehold_prev[seed] = self.samplehold[seed]
 		self.samplehold_duration[seed] = duration
 		self.samplehold[seed] = {value = min + math.random()*(max-min), refresh = CurTime() + self.samplehold_duration[seed]}
-
+		
 	end
 	if not ease then
 		return self.samplehold[seed].value
@@ -587,24 +566,6 @@ PART.Inputs.median = function(self, ...)
 	return sum
 end
 
-PART.Inputs.part_pos = function(self, uid1)
-	local PartA
-	if not uid1 then --no argument, take parent
-		PartA = self:GetParent()
-		return PartA:GetWorldPosition()
-	else
-		PartA = self:GetOrFindCachedPart(uid1)
-	end
-
-	if not IsValid(PartA) and uid1 then --first argument exists and failed to find anything, ERROR
-		self.invalid_parts_in_expression[uid1] = "invalid argument " .. uid1 .. " in part_pos"
-	end
-
-	if not IsValid(PartA) then return 0 end
-	if not PartA.Position then return 0 end
-	self.valid_parts_in_expression[PartA] = PartA
-	return PartA:GetWorldPosition()
-end
 
 PART.Inputs.part_pos_x = function(self, uid1)
 	local PartA
@@ -661,33 +622,6 @@ PART.Inputs.part_pos_z = function(self, uid1)
 	if not PartA.Position then return 0 end
 	self.valid_parts_in_expression[PartA] = PartA
 	return PartA:GetWorldPosition().z
-end
-
-PART.Inputs.delta_pos = function(self, uid1, uid2)
-	if not uid1 then return 0 end
-	local PartA = self:GetOrFindCachedPart(uid1)
-	local PartB
-	if not uid2 then
-		PartB = self:GetParent()
-	else
-		PartB = self:GetOrFindCachedPart(uid2)
-	end
-	if not IsValid(PartB) then
-		if uid2 then
-			--second argument exists and failed to find anything, ERROR
-			self.invalid_parts_in_expression[uid2] = "invalid argument " .. uid2 .. " in delta_pos"
-		end
-	end
-
-	if not IsValid(PartA) and uid1 then --first argument exists and failed to find anything, ERROR
-		self.invalid_parts_in_expression[uid1] = "invalid argument " .. uid1 .. " in delta_pos"
-	end
-
-	if not IsValid(PartA) or not IsValid(PartB) then return 0 end
-	if not PartA.Position or not PartB.Position then return 0 end
-	self.valid_parts_in_expression[PartA] = PartA
-	self.valid_parts_in_expression[PartB] = PartB
-	return PartB:GetWorldPosition() - PartA:GetWorldPosition()
 end
 
 PART.Inputs.delta_x = function(self, uid1, uid2)
@@ -770,192 +704,6 @@ PART.Inputs.delta_z = function(self, uid1, uid2)
 	self.valid_parts_in_expression[PartB] = PartB
 	return PartB:GetWorldPosition().z - PartA:GetWorldPosition().z
 end
-
-PART.Inputs.part_ang = function(self, uid1)
-	local PartA
-	if not uid1 then --no argument, take parent
-		PartA = self:GetParent()
-		return PartA:GetWorldAngles()
-	else
-		PartA = self:GetOrFindCachedPart(uid1)
-	end
-
-	if not IsValid(PartA) and uid1 then --first argument exists and failed to find anything, ERROR
-		self.invalid_parts_in_expression[uid1] = "invalid argument " .. uid1 .. " in part_pos"
-	end
-
-	if not IsValid(PartA) then return 0 end
-	if not PartA.Position then return 0 end
-	self.valid_parts_in_expression[PartA] = PartA
-	return PartA:GetWorldAngles()
-end
-
-PART.Inputs.part_pitch = function(self, uid1)
-	local PartA
-	if not uid1 then --no argument, take parent
-		PartA = self:GetParent()
-		return PartA:GetWorldAngles().p
-	else
-		PartA = self:GetOrFindCachedPart(uid1)
-	end
-
-	if not IsValid(PartA) and uid1 then --first argument exists and failed to find anything, ERROR
-		self.invalid_parts_in_expression[uid1] = "invalid argument " .. uid1 .. " in part_pos"
-	end
-
-	if not IsValid(PartA) then return 0 end
-	if not PartA.Position then return 0 end
-	self.valid_parts_in_expression[PartA] = PartA
-	return PartA:GetWorldAngles().p
-end
-
-PART.Inputs.part_yaw = function(self, uid1)
-	local PartA
-	if not uid1 then --no argument, take parent
-		PartA = self:GetParent()
-		return PartA:GetWorldAngles().y
-	else
-		PartA = self:GetOrFindCachedPart(uid1)
-	end
-
-	if not IsValid(PartA) and uid1 then --first argument exists and failed to find anything, ERROR
-		self.invalid_parts_in_expression[uid1] = "invalid argument " .. uid1 .. " in part_pos"
-	end
-
-	if not IsValid(PartA) then return 0 end
-	if not PartA.Position then return 0 end
-	self.valid_parts_in_expression[PartA] = PartA
-	return PartA:GetWorldAngles().y
-end
-
-PART.Inputs.part_roll = function(self, uid1)
-	local PartA
-	if not uid1 then --no argument, take parent
-		PartA = self:GetParent()
-		return PartA:GetWorldAngles().r
-	else
-		PartA = self:GetOrFindCachedPart(uid1)
-	end
-
-	if not IsValid(PartA) and uid1 then --first argument exists and failed to find anything, ERROR
-		self.invalid_parts_in_expression[uid1] = "invalid argument " .. uid1 .. " in part_pos"
-	end
-
-	if not IsValid(PartA) then return 0 end
-	if not PartA.Position then return 0 end
-	self.valid_parts_in_expression[PartA] = PartA
-	return PartA:GetWorldAngles().r
-end
-
-PART.Inputs.delta_ang = function(self, uid1, uid2)
-	if not uid1 then return 0 end
-	local PartA = self:GetOrFindCachedPart(uid1)
-	local PartB
-	if not uid2 then
-		PartB = self:GetParent()
-	else
-		PartB = self:GetOrFindCachedPart(uid2)
-	end
-	if not IsValid(PartB) then
-		if uid2 then
-			--second argument exists and failed to find anything, ERROR
-			self.invalid_parts_in_expression[uid2] = "invalid argument " .. uid2 .. " in delta_ang"
-		end
-	end
-
-	if not IsValid(PartA) and uid1 then --first argument exists and failed to find anything, ERROR
-		self.invalid_parts_in_expression[uid1] = "invalid argument " .. uid1 .. " in delta_ang"
-	end
-
-	if not IsValid(PartA) or not IsValid(PartB) then return 0 end
-	if not PartA.Position or not PartB.Position then return 0 end
-	self.valid_parts_in_expression[PartA] = PartA
-	self.valid_parts_in_expression[PartB] = PartB
-	local ang = PartB:GetWorldAngles() - PartA:GetWorldAngles()
-	return Vector(ang.p, ang.y, ang.r)
-end
-
-PART.Inputs.delta_pitch = function(self, uid1, uid2)
-	if not uid1 then return 0 end
-	local PartA = self:GetOrFindCachedPart(uid1)
-	local PartB
-	if not uid2 then
-		PartB = self:GetParent()
-	else
-		PartB = self:GetOrFindCachedPart(uid2)
-	end
-	if not IsValid(PartB) then
-		if uid2 then
-			--second argument exists and failed to find anything, ERROR
-			self.invalid_parts_in_expression[uid2] = "invalid argument " .. uid2 .. " in delta_pitch"
-		end
-	end
-
-	if not IsValid(PartA) and uid1 then --first argument exists and failed to find anything, ERROR
-		self.invalid_parts_in_expression[uid1] = "invalid argument " .. uid1 .. " in delta_pitch"
-	end
-
-	if not IsValid(PartA) or not IsValid(PartB) then return 0 end
-	if not PartA.Position or not PartB.Position then return 0 end
-	self.valid_parts_in_expression[PartA] = PartA
-	self.valid_parts_in_expression[PartB] = PartB
-	return PartB:GetWorldAngles().p - PartA:GetWorldAngles().p
-end
-
-PART.Inputs.delta_yaw = function(self, uid1, uid2)
-	if not uid1 then return 0 end
-	local PartA = self:GetOrFindCachedPart(uid1)
-	local PartB
-	if not uid2 then
-		PartB = self:GetParent()
-	else
-		PartB = self:GetOrFindCachedPart(uid2)
-	end
-	if not IsValid(PartB) then
-		if uid2 then
-			--second argument exists and failed to find anything, ERROR
-			self.invalid_parts_in_expression[uid2] = "invalid argument " .. uid2 .. " in delta_yaw"
-		end
-	end
-
-	if not IsValid(PartA) and uid1 then --first argument exists and failed to find anything, ERROR
-		self.invalid_parts_in_expression[uid1] = "invalid argument " .. uid1 .. " in delta_yaw"
-	end
-
-	if not IsValid(PartA) or not IsValid(PartB) then return 0 end
-	if not PartA.Position or not PartB.Position then return 0 end
-	self.valid_parts_in_expression[PartA] = PartA
-	self.valid_parts_in_expression[PartB] = PartB
-	return ((360 + PartB:GetWorldAngles().y - PartA:GetWorldAngles().y) % 180) - 180
-end
-
-PART.Inputs.delta_roll = function(self, uid1, uid2)
-	if not uid1 then return 0 end
-	local PartA = self:GetOrFindCachedPart(uid1)
-	local PartB
-	if not uid2 then
-		PartB = self:GetParent()
-	else
-		PartB = self:GetOrFindCachedPart(uid2)
-	end
-	if not IsValid(PartB) then
-		if uid2 then
-			--second argument exists and failed to find anything, ERROR
-			self.invalid_parts_in_expression[uid2] = "invalid argument " .. uid2 .. " in delta_roll"
-		end
-	end
-
-	if not IsValid(PartA) and uid1 then --first argument exists and failed to find anything, ERROR
-		self.invalid_parts_in_expression[uid1] = "invalid argument " .. uid1 .. " in delta_roll"
-	end
-
-	if not IsValid(PartA) or not IsValid(PartB) then return 0 end
-	if not PartA.Position or not PartB.Position then return 0 end
-	self.valid_parts_in_expression[PartA] = PartA
-	self.valid_parts_in_expression[PartB] = PartB
-	return PartB:GetWorldAngles().r - PartA:GetWorldAngles().r
-end
-
 
 PART.Inputs.event_alternative = function(self, uid1, num1, num2)
 	if not uid1 then return 0 end
@@ -1085,8 +833,6 @@ end
 
 PART.Inputs.number_operator_alternative = function(self, comp1, op, comp2, num1, num2)
 	if not (comp1 and op and comp2) then return -1 end
-	num1 = num1 or 0
-	num2 = num2 or 1
 	if not (isnumber(comp1) and isnumber(comp2) and (isnumber(num1) or isvector(num1)) and (isnumber(num2) or isvector(num2))) then return -1 end
 	local b = true
 	if op == "=" or op == "==" or op == "equal" then
@@ -1269,8 +1015,6 @@ do -- velocity world
 		return self:GetVelocity(owner)
 	end
 
-	PART.Inputs.owner_velocity = function(self) return get_velocity(self) end
-	PART.Inputs.owner_velocity_world = PART.Inputs.owner_velocity
 	PART.Inputs.owner_velocity_world_forward = function(self) return get_velocity(self)[1] end
 	PART.Inputs.owner_velocity_world_right = function(self) return get_velocity(self)[2] end
 	PART.Inputs.owner_velocity_world_up = function(self) return get_velocity(self)[3] end
@@ -1387,28 +1131,7 @@ do -- scale
 	end
 	PART.Inputs.parent_scale_x = function(self) return get_scale(self, "x") end
 	PART.Inputs.parent_scale_y = function(self) return get_scale(self, "y") end
-	PART.Inputs.parent_scale_z = function(self) return get_scale(self, "z") end
-end
-
-do -- parent scale alt (parent or uid/name)
-	local function get_scale(self, field, uid)
-		local part = self:GetParent()
-		if uid then part = self:GetOrFindCachedPart(uid) end
-		if not part:IsValid() then return 1 end
-
-		return part.Scale and part.Scale[field]*part.Size or 1
-	end
-	PART.Inputs.part_scale = function(self, field, uid)
-		local part = self:GetParent()
-		if uid then part = self:GetOrFindCachedPart(uid) end
-		if not part:IsValid() then return Vector(1,1,1) end
-
-		return part.Scale and part.Scale * part.Size or Vector(1,1,1)
-	end
-	PART.Inputs.part_scale_vec = PART.Inputs.part_scale
-	PART.Inputs.part_scale_x = function(self, uid) return get_scale(self, "x", uid) end
-	PART.Inputs.part_scale_y = function(self, uid) return get_scale(self, "y", uid) end
-	PART.Inputs.part_scale_z = function(self, uid) return get_scale(self, "z", uid) end
+	PART.Inputs.parent_scale_z = function(self) return get_scale(self, "z") end	
 end
 
 PART.Inputs.pose_parameter = function(self, name)
@@ -1807,13 +1530,28 @@ PART.Inputs.flat_dot_right = function(self)
 	return 0
 end
 
-PART.Inputs.server_maxplayers = function(self)
-	return game.MaxPlayers()
+PART.Inputs.server_maxplayers = function(self) return game.MaxPlayers() end
+PART.Inputs.server_playercount = function(self)
+	local count = 0
+	for _, ply in player.Iterator() do count = count + 1 end
+	return count
 end
-PART.Inputs.server_playercount = function(self) return #player.GetAll() end
 PART.Inputs.server_population = PART.Inputs.server_playercount
-PART.Inputs.server_botcount = function(self) return #player.GetBots() end
-PART.Inputs.server_humancount = function(self) return #player.GetHumans() end
+
+PART.Inputs.server_botcount = function(self)
+	local count = 0
+	for _, ply in player.Iterator() do
+		if ply:IsBot() then count = count + 1 end
+	end
+	return count
+end
+PART.Inputs.server_humancount = function(self)
+	local count = 0
+	for _, ply in player.Iterator() do
+		if not ply:IsBot() then count = count + 1 end
+	end
+	return count
+end
 
 PART.Inputs.pac_healthbars_total = function(self)
 	local ent = self:GetPlayerOwner()
@@ -1880,17 +1618,37 @@ end
 
 PART.Inputs.healthmod_bar_remaining_bars = PART.Inputs.pac_healthbar_remaining_bars
 
-PART.Inputs.jiggle_ang_diff = function(self, uid, field)
+PART.Inputs.text_length_raw = function(self, uid)
 	local part = self:GetOrFindCachedPart(uid)
 	if not IsValid(part) then return 0 end
-	if part.ClassName ~= "jiggle" then return 0 end
-	return part.ang_diff and part.ang_diff[field] or 0
+	if part.ClassName ~= "text" then return 0 end
+	return part.DisplayTextLengthPreTruncate or 0
 end
+PART.Inputs.text_length_raw_nospaces = function(self, uid)
+	local part = self:GetOrFindCachedPart(uid)
+	if not IsValid(part) then return 0 end
+	if part.ClassName ~= "text" then return 0 end
+	if not part.DisplayTextPreTruncate then return 0 end
+	local chars = 0
+	for c=1,#part.DisplayTextPreTruncate do
+		if part.DisplayTextPreTruncate[c] ~= " " then
+			chars = chars + 1
+		end
+	end
+	return chars
+end
+PART.Inputs.text_length_truncated = function(self, uid)
+	local part = self:GetOrFindCachedPart(uid)
+	if not IsValid(part) then return 0 end
+	if part.ClassName ~= "text" then return 0 end
+	return part.DisplayTextLengthPostTruncate or 0
+end
+
 
 
 local proxy_verbosity = CreateConVar("pac_proxy_verbosity", 1, FCVAR_ARCHIVE, "whether to print info when running pac_proxy")
 net.Receive("pac_proxy", function()
-	local ply = net.ReadEntity()
+	local ply = net.ReadPlayer()
 	local str = net.ReadString()
 
 	local x = net.ReadFloat()
@@ -2008,26 +1766,11 @@ function PART:SetExpressionOnHide(str)
 	self:SetExpression(str, 0)
 end
 
-local function check_for_feedback_hint(self, str)
-	if pac.LocalPLayer ~= self:GetPlayerOwner() then return end
-	if string.find(str, "feedback(", nil, true) or string.find(str, "feedback_x(", nil, true) or string.find(str, "feedback_y(", nil, true) or string.find(str, "feedback_z(", nil, true) then
-		if str ~= "feedback()" and str ~= "feedback_x()" and str ~= "feedback_y()" and str ~= "feedback_z()" then
-			timer.Simple(0.3, function() self:AttachEditorPopup("You should probably move your expression to main because feedback is calculated from main.\nyou can leave a copy of your feedback function on the extra expression", true)
-				if not (string.find(self.Expression, "feedback(", nil, true) or string.find(self.Expression, "feedback_x(", nil, true) or string.find(self.Expression, "feedback_y(", nil, true) or string.find(self.Expression, "feedback_z(", nil, true)) then
-					pace.FlashNotification("You should probably copy your extra expression to the main expression because feedback is calculated from main. Leave one copy of your feedback function in the extra expression.")
-					self:SetWarning("You should probably copy your extra expression to the main expression because feedback is calculated from main. Leave one copy of your feedback function in the extra expression.") self.error = true
-				end
-			end)
-		end
-	end
-end
-
 function PART:SetExtra1(str)
 	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
 	self.error = false
 	self.Extra1 = str
 	self:SetExpression(str, 1)
-	check_for_feedback_hint(self, str)
 end
 
 function PART:SetExtra2(str)
@@ -2035,7 +1778,6 @@ function PART:SetExtra2(str)
 	self.error = false
 	self.Extra2 = str
 	self:SetExpression(str, 2)
-	check_for_feedback_hint(self, str)
 end
 
 function PART:SetExtra3(str)
@@ -2043,7 +1785,6 @@ function PART:SetExtra3(str)
 	self.error = false
 	self.Extra3 = str
 	self:SetExpression(str, 3)
-	check_for_feedback_hint(self, str)
 end
 
 function PART:SetExtra4(str)
@@ -2051,7 +1792,6 @@ function PART:SetExtra4(str)
 	self.error = false
 	self.Extra4 = str
 	self:SetExpression(str, 4)
-	check_for_feedback_hint(self, str)
 end
 
 function PART:SetExtra5(str)
@@ -2059,7 +1799,6 @@ function PART:SetExtra5(str)
 	self.error = false
 	self.Extra5 = str
 	self:SetExpression(str, 5)
-	check_for_feedback_hint(self, str)
 end
 
 function PART:OnHide()
@@ -2078,9 +1817,11 @@ function PART:OnHide()
 		-- cleanup event triggers on hide
 		local part = self:GetTarget()
 		if self.AffectChildren then
-			for _, part in ipairs(self:GetChildren()) do
-				part:SetEventTrigger(self, false)
-				part.proxy_hide = nil
+			local children = self:GetChildren()
+			for i = 1, #children do
+				local child = children[i]
+				child:SetEventTrigger(self, false)
+				child.proxy_hide = nil
 			end
 		elseif part:IsValid() then
 			part:SetEventTrigger(self, false)
@@ -2114,9 +1855,7 @@ local function set(self, part, x, y, z, children)
 
 			-- special case for hide to make it behave like events
 			if self.VariableName == "Hide" then
-
 				if part.proxy_hide ~= b then
-
 					-- in case parts start as hidden
 					if b == false then
 						part:SetKeyValueRecursive("Hide", b)
@@ -2176,13 +1915,14 @@ local function set(self, part, x, y, z, children)
 	end
 
 	if children then
-		for _, part in ipairs(part:GetChildren()) do
-			set(self, part, x, y, z, true)
+		local children_list = part:GetChildren()
+		for i = 1, #children_list do
+			set(self, children_list[i], x, y, z, true)
 		end
 	end
 
 	--update the property if this is the current part
-	if not extra_dynamic:GetBool() or (pace.request_proxy_stats == "stats") then return end
+	if not extra_dynamic:GetBool() then return end
 	if pace:IsActive() then
 		if self:GetPlayerOwner() ~= pac.LocalPlayer then return end
 		if part ~= pace.current_part then return end
@@ -2239,14 +1979,14 @@ local function set(self, part, x, y, z, children)
 				property_pnl:SetValue(math.Round(tonumber(x) or 0,4))
 				container:SetTooltip("LOCKED: Used by proxy:\n"..self:GetName().."\n\n" .. math_description)
 			end
-
-
+			
+			
 		end
 	end
 end
 
 function PART:RunExpression(ExpressionFunc)
-	if ExpressionFunc==true then
+	if ExpressionFunc == true then
 		return false,self.ExpressionError
 	end
 	return pcall(ExpressionFunc)
@@ -2300,54 +2040,34 @@ function PART:OnRemove()
 	pac.RemoveHook("HUDPaint", "proxy" .. self.UniqueID)
 end
 
-function PART:PerfCheckpoint(str, b) --each pair costs 0.65 microseconds, pretty much negligible but keep that in mind
-	if not pace.IsActive() then return end
-	if pace.performance_tracked_part ~= self then return end
-	if pace.request_proxy_stats ~= "stats" then return end
-	if b then
-		table.insert(self.checkpoints, perf_division_index, {starttime = SysTime(), name = str})
-	else
-		local tbl = self.checkpoints[perf_division_index]
-		if tbl then
-			tbl.delta = SysTime() - tbl.starttime
-		end
-		perf_division_index = perf_division_index + 1
+
+local last_part
+pac.AddHook("pace_OnPartSelected", "warn_if_empty_proxy_variablename", function(part)
+	if part == last_part then return end
+	last_part = pace.current_part
+	self = last_part
+	if self.ClassName == "proxy" then
+		--foolproofing: scream at the user if they didn't set a variable name and there's no extra expressions ready to be used
+		if self.VariableName == "" and self.Extra1 == "" and self.Extra2 == "" and self.Extra3 == "" and self.Extra4 == "" and self.Extra5 == "" then
+			pace.FlashNotification("An edited proxy still has no variable name! The proxy won't work until it knows where to send the math!")
+			self:SetWarning("You forgot to set a variable name! The proxy won't work until it knows where to send the math!")
+		elseif self.VariableName ~= "" and not self.error and not self.errors_override then self:SetWarning() end
 	end
-end
+	last_part = part
+end)
 
 function PART:OnThink(to_hide)
 	local playerowner = self:GetPlayerOwner() == pac.LocalPlayer
-	--if math.random() > 0.5 then return end
-	self.checkpoints = {}
+	local part = self:GetTarget()
+	if not part:IsValid() then return end
 
-	self:PerfCheckpoint("pre_setup", false)
-	self:PerfCheckpoint("pre_setup", true)
-		local part = self:GetTarget()
-		if not part:IsValid() then return end
-		if part.ClassName == 'woohoo' then --why a part hardcode exclusion??
-			--ok fine I guess it's because it's super expensive, but at least we can be selective about it, the other parameters are safe
-			if self.VariableName == "Resolution" or self.VariableName == "BlurFiltering" and self.touched then
-				return
-			end
-		end
 
-		--foolproofing: scream at the user if they didn't set a variable name and there's no extra expressions ready to be used
-		if self == pace.current_part then self.touched = true end
-		if self ~= pace.current_part and self.VariableName == "" and self.touched and self.Extra1 == ""	and self.Extra2 == "" and self.Extra3 == "" and self.Extra4 == "" and self.Extra5 == "" then
-			self:AttachEditorPopup("You forgot to set a variable name! The proxy won't work until it knows where to send the math!", true)
-			pace.FlashNotification("An edited proxy still has no variable name! The proxy won't work until it knows where to send the math!")
-			self:SetWarning("You forgot to set a variable name! The proxy won't work until it knows where to send the math!")
-			self.touched = false
-		elseif self.VariableName ~= "" and not self.error and not self.errors_override then self:SetWarning() end
+	self:CalcVelocity()
 
-		self:CalcVelocity()
-	self:PerfCheckpoint("pre_setup", false)
-
-	self:PerfCheckpoint("run_expressions", true)
 	if self.has_extras then --pre-calculate the extra expressions if needed
-		for i=1,5,1 do
+		for i = 1, 5, 1 do
 			if self["Extra" .. i] ~= "" then
-				local ok, x,y,z = self:RunExpression(self["Extra" .. i .. "Func"])
+				local ok, x, y, z = self:RunExpression(self["Extra" .. i .. "Func"])
 				if ok then
 					self["feedback_extra" .. i] = x
 				end
@@ -2358,17 +2078,13 @@ function PART:OnThink(to_hide)
 	local ExpressionFunc = self.ExpressionFunc
 	if to_hide then ExpressionFunc = self.ExpressionOnHideFunc end
 
+	if not ExpressionFunc then
+		self:SetExpression(self.Expression)
+		ExpressionFunc = self.ExpressionFunc
+	end
+
 	if ExpressionFunc then
-
-		local ok, x,y,z = self:RunExpression(ExpressionFunc)
-		self:PerfCheckpoint("run_expressions", false)
-
-		self:PerfCheckpoint("process_results", true)
-		if isvector(x) then
-			z = x.z
-			y = x.y
-			x = x.x
-		end
+		local ok, x, y, z = self:RunExpression(ExpressionFunc)
 
 		if not ok then self.error = true
 			if playerowner and self.Expression ~= self.LastBadExpression then
@@ -2389,7 +2105,6 @@ function PART:OnThink(to_hide)
 		if x and not isnumber(x) then x = 0 end
 		if y and not isnumber(y) then y = 0 end
 		if z and not isnumber(z) then z = 0 end
-
 
 		if self.Additive then
 			if x then
@@ -2412,23 +2127,27 @@ function PART:OnThink(to_hide)
 		self.feedback[1] = x
 		self.feedback[2] = y
 		self.feedback[3] = z
-		self:PerfCheckpoint("process_results", false)
 
-		self:PerfCheckpoint("apply_to_parts", true)
 		if self.AffectChildren then
 			if self.MultiTargetPart then
-				for _,part2 in ipairs(self.MultiTargetPart) do
+				local mtp = self.MultiTargetPart
+				for i = 1, #mtp do
+					local part2 = mtp[i]
 					if not part2.GetProperty then continue end
 					set(self, part2, x, y, z, true)
 				end
 			else
-				for _, part in ipairs(self:GetChildren()) do
+				local children = self:GetChildren()
+				for i = 1, #children do
+					local part = children[i]
 					set(self, part, x, y, z, true)
 				end
 			end
 		else
 			if self.MultiTargetPart then
-				for _,part2 in ipairs(self.MultiTargetPart) do
+				local mtp = self.MultiTargetPart
+				for i = 1, #mtp do
+					local part2 = mtp[i]
 					if not part2.GetProperty then continue end
 					set(self, part2, x, y, z)
 				end
@@ -2437,7 +2156,7 @@ function PART:OnThink(to_hide)
 			end
 		end
 
-		if not self.PreviewOutput then
+		if not playerowner and not self.PreviewOutput then
 			if not self.pace_tree_node then return end
 			if not self.pace_tree_node:IsValid() then return end
 		else
@@ -2464,17 +2183,12 @@ function PART:OnThink(to_hide)
 				self.pace_properties["Name"]:SetText(self:GetNiceName())
 			end
 		end
-		self:PerfCheckpoint("apply_to_parts", false)
 	else
-
 		local post_function = self.Functions[self.Function]
 		local input_function = self.Inputs[self.Input]
 
 		if post_function and input_function then
 			local ran, err = pcall( input_function, self )
-			self:PerfCheckpoint("run_expressions", false)
-
-			self:PerfCheckpoint("process_results", true)
 
 			if not ran then
 				error("proxy function " .. tostring( self.Input ) .. " | " .. tostring( self.Function ) .. " | " .. tostring( self ) .. " failed: " .. err)
@@ -2492,23 +2206,27 @@ function PART:OnThink(to_hide)
 				self.vec_additive[1] = (self.vec_additive[1] or 0) + num
 				num = self.vec_additive[1]
 			end
-			self:PerfCheckpoint("process_results", false)
 
-			self:PerfCheckpoint("apply_to_parts", true)
 			if self.AffectChildren then
 				if self.MultiTargetPart then
-					for _,part2 in ipairs(self.MultiTargetPart) do
+					local mtp = self.MultiTargetPart
+					for i = 1, #mtp do
+						local part2 = mtp[i]
 						if not part2.GetProperty then continue end
 						set(self, part2, num, nil, nil, true)
 					end
 				else
-					for _, part in ipairs(self:GetChildren()) do
+					local children = self:GetChildren()
+					for i = 1, #children do
+						local part = children[i]
 						set(self, part, num, nil, nil, true)
 					end
 				end
 			else
 				if self.MultiTargetPart then
-					for _,part2 in ipairs(self.MultiTargetPart) do
+					local mtp = self.MultiTargetPart
+					for i = 1, #mtp do
+						local part2 = mtp[i]
 						if not part2.GetProperty then continue end
 						set(self, part2, num)
 					end
@@ -2525,7 +2243,6 @@ function PART:OnThink(to_hide)
 			if self.Name == "" and pace.current_part == self and self.pace_properties and IsValid(self.pace_properties["Name"]) then
 				self.pace_properties["Name"]:SetText(self:GetNiceName())
 			end
-			self:PerfCheckpoint("apply_to_parts", false)
 		end
 	end
 
@@ -2595,10 +2312,8 @@ function PART:AttachEditorPopup(str, flash, tbl)
 	return pnl
 end
 
-
 timer.Simple(10, function()
 	pace.TUTORIALS["proxy_functions"] = PART.Tutorials
 end)
 
 BUILDER:Register()
-jit.off()
