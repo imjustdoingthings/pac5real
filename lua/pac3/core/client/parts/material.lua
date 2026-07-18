@@ -193,7 +193,9 @@ for shader_name, groups in pairs(shader_params.shaders) do
 					local info = PART.ShaderParams[k]
 
 					if isstring(v) then
-						if v:find("[", nil, true) then
+						if tonumber(v) then
+							v = tonumber(v)
+						elseif v:find("[", nil, true) then
 							v = Vector(v:gsub("[%[%]]", ""):gsub("%s+", " "):Trim())
 
 							if isnumber(info.default) then
@@ -235,6 +237,7 @@ for shader_name, groups in pairs(shader_params.shaders) do
 		else
 			self:SetWarning()
 		end
+		update_submaterial(self)
 		return true
 	end
 

@@ -4076,6 +4076,9 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 			frame.OnClose = function()
 				if old_OnClose then old_OnClose() end
 				pace.RefreshTree()
+				if pace.current_part == obj then
+					pace.PopulateProperties(obj)
+				end
 			end
 		end):SetIcon("icon16/page_white_edit.png")
 	end
