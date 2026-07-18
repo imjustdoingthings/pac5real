@@ -3939,7 +3939,7 @@ end
 function pace.AddClassSpecificPartMenuComponents(menu, obj)
 	if obj.Notes == "showhidetest" then menu:AddOption("(hide/show test) reset", function() obj:CallRecursive("OnShow") end):SetIcon("icon16/star.png") end
 
-	if obj.ClassName == "material" then
+	if string.sub(obj.ClassName, 1, 9) == "material_" then
 		menu:AddOption("export to VMT (saves to clipboard/disk)", function()
 			obj:ExportVmt()
 		end):SetImage("icon16/page_go.png")
