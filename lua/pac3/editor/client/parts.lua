@@ -2659,6 +2659,7 @@ local part_classes_with_quicksetups = {
 	projectile = true,
 	entity2 = true,
 	model2 = true,
+	material = true,
 	group = true,
 	camera = true,
 	faceposer = true,
@@ -2711,6 +2712,11 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 			pace.SubstituteBaseMovable(obj, "create_parent")
 			timer.Simple(20, function() if pace.recently_substituted_movable_part == obj then pace.recently_substituted_movable_part = nil end end)
 		end) pnl:SetImage("icon16/application_double.png")
+		if obj.ClassName == "material" then
+			main:AddOption("export to VMT (saves to clipboard/disk)", function()
+				obj:ExportVmt()
+			end):SetImage("icon16/page_go.png")
+		end
 			substitutes:AddOption("empty model", function()
 				--pulled from pace.SubstituteBaseMovable(obj, "create_parent")
 				local newObj = pac.CreatePart("model2")
