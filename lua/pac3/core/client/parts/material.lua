@@ -129,6 +129,13 @@ for shader_name, groups in pairs(shader_params.shaders) do
 -- import VMTs from files or raw text
 	function PART:ImportVmt(str, name, silent)
 		if not str or str == "" then return false end
+		-- preprocess booleans vmt values like additive and nodraw to add " 1" to valueless flags
+		local lines = string.Explode("\n", str)
+		for i = 1, #lines do
+			local line = lines[i]:Trim()
+			if line:match("^%$[%w_]+$") or line:match("^\"%$[%w_]+\"$") then lines[i] = lines[i] .. " 1" end
+		end
+		str = table.concat(lines, "\n")
 
 		local vmt = util.KeyValuesToTable(str)
 		if not vmt then
