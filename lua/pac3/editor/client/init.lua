@@ -76,10 +76,13 @@ function pace.OpenEditor()
 		end
 	pace.Editor = editor
 	
-	local theme = pac_editor_theme:GetString()
-	if theme and theme ~= "" and theme ~= "default" then
-		editor:SetSkin(theme)
-	end
+	timer.Simple(0, function()
+		if not IsValid(editor) then return end
+		local theme = pac_editor_theme:GetString()
+		if theme and theme ~= "" and theme ~= "default" then
+			editor:SetSkin(theme)
+		end
+	end)
 	
 	pace.Active = true
 

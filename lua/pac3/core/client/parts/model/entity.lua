@@ -185,7 +185,10 @@ function PART:OnShow()
 	(pac.LocalHands:IsValid() and ent == pac.LocalHands
 	and not (self.real_model == pac.LocalHands:GetModel())) then
 		self.old_model = self:GetModel()
-		self:SetModel(self:GetModel())
+		
+		if self.Model ~= "" then
+			self:SetModel(self:GetModel())
+		end
 	end
 
 	self:SetDrawShadow(self:GetDrawShadow())
