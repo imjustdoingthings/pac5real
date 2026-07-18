@@ -283,12 +283,18 @@ function PART:OnDraw()
 				p.ent:SetColor(particle_col)
 
 				local size = math.max(Lerp(frac, p.start_size, p.end_size) / 10, 0.001)
-				particle_matrix:Identity()
-				particle_matrix:Scale(Vector(size, size, size))
-				p.ent:EnableMatrix("RenderMultiply", particle_matrix)
-
-				if self.Materialm then render.MaterialOverride(self.Materialm)
-				elseif self.Material ~= "" then render.MaterialOverride(pac.Material(self.Material, self)) end
+				p.ent:SetModelScale(size, 0)
+				local override_mat = nil
+				if self.Materialm and self.Material ~= "effects/slime1" then
+					override_mat = self.Materialm
+				elseif self.Material ~= "" and self.Material ~= "effects/slime1" then
+					override_mat = pac.Material(self.Material, self)
+				end
+				if override_mat then
+					render.MaterialOverride(override_mat)
+				end
+				render.SetColorModulation(particle_col.r / 255, particle_col.g / 255, particle_col.b / 255)
+				render.SetBlend(particle_col.a / 255)
 
 				if not self.Lighting then render.SuppressEngineLighting(true) end
 
@@ -303,7 +309,9 @@ function PART:OnDraw()
 				end
 
 				if not self.Lighting then render.SuppressEngineLighting(false) end
-				if self.Materialm or self.Material ~= "" then render.MaterialOverride() end
+				if override_mat then render.MaterialOverride() end
+				render.SetColorModulation(1, 1, 1)
+				render.SetBlend(1)
 			end
 		end
 	end
@@ -418,16 +426,20 @@ function PART:EmitParticles(pos, ang, real_ang)
 
 			local roll = math.Rand(-self.RollDelta, self.RollDelta)
 			local particle_pos = base_pos
-
-			-- resolve the entity to use for bone and mesh spawning
-			-- GetOwner() returns the clientside model entity
-			-- pcall guards against crashes in the GetOwner chain
 			local spawn_owner = nil
 			local target_part = GetTargetPart(self, self.SpawnTarget)
 			if target_part then
 				local ok, owner = pcall(target_part.GetOwner, target_part)
 				if ok and IsValid(owner) then
 					spawn_owner = owner
+					if not owner:IsPlayer() and not owner:IsNPC() then
+						local pos, ang = target_part:GetDrawPosition()
+						if pos and ang then
+							owner:SetPos(pos)
+							owner:SetAngles(ang)
+						end
+					end
+					owner:SetupBones()
 				end
 			end
 			if not IsValid(spawn_owner) then
@@ -480,6 +492,12 @@ function PART:EmitParticles(pos, ang, real_ang)
 						local r1, r2 = math.random(), math.random()
 						if r1 + r2 > 1 then r1 = 1 - r1; r2 = 1 - r2 end
 						local lpos = tri[1] + (tri[2] - tri[1]) * r1 + (tri[3] - tri[1]) * r2
+						-- apply target part scale if applicable
+						if target_part then
+							local scale = target_part.Scale or Vector(1, 1, 1)
+							local size = target_part.Size or 1
+							lpos = lpos * (scale * size)
+						end
 						particle_pos = spawn_owner:LocalToWorld(lpos)
 					end
 				end
@@ -501,7 +519,7 @@ function PART:EmitParticles(pos, ang, real_ang)
 			if self.MeshParticle and self.ParticleModel ~= "" then
 				self.MeshParticlesList = self.MeshParticlesList or {}
 				if #self.MeshParticlesList < 100 then
-					local ent_model = ClientsideModel(self.ParticleModel)
+					local ent_model = pac.CreateEntity(self.ParticleModel)
 					if IsValid(ent_model) then
 						ent_model:SetNoDraw(true)
 						ent_model:SetPos(particle_pos)
