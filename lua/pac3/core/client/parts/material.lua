@@ -184,47 +184,49 @@ for shader_name, groups in pairs(shader_params.shaders) do
 		local errors = {"cannot convert material parameter:"}
 		self:SetCustomVmtFlags("")
 		for k,v in pairs(inner_vmt) do
-			local orig_k = k
-			if k:StartWith("$") then k = k:sub(2) end
+			if type(k) == "string" then -- prevent constant  errors
+				local orig_k = k
+				if k:StartWith("$") then k = k:sub(2) end
 
-			local func = self["Set" .. k]
-			if func then
-				local info = PART.ShaderParams[k]
+				local func = self["Set" .. k]
+				if func then
+					local info = PART.ShaderParams[k]
 
-				if isstring(v) then
-					if v:find("[", nil, true) then
-						v = Vector(v:gsub("[%[%]]", ""):gsub("%s+", " "):Trim())
+					if isstring(v) then
+						if v:find("[", nil, true) then
+							v = Vector(v:gsub("[%[%]]", ""):gsub("%s+", " "):Trim())
 
-						if isnumber(info.default) then
-							v = v.x
-						end
-					elseif v:find("{", nil, true) then
-						v = Vector(v:gsub("[%{%}]", ""):gsub("%s+", " "):Trim())
+							if isnumber(info.default) then
+								v = v.x
+							end
+						elseif v:find("{", nil, true) then
+							v = Vector(v:gsub("[%{%}]", ""):gsub("%s+", " "):Trim())
 
-						if info.type == "color" then
-							v = v / 255
+							if info.type == "color" then
+								v = v / 255
+							end
 						end
 					end
-				end
 
-				if isnumber(v) then
-					if info.type == "bool" or info.is_flag then
-						v = v == 1
+					if isnumber(v) then
+						if info.type == "bool" or info.is_flag then
+							v = v == 1
+						end
 					end
-				end
 
-				func(self, v)
-			else
-				table.insert(errors,k)
-				if dump_vmt_when_load_vmt:GetInt() == 2 and not silent then
-					pac.Message("cannot convert material parameter " .. k)
-				end
-				local line = (orig_k:StartWith("$") and orig_k or "$" .. orig_k) .. " \"" .. tostring(v) .. "\""
-				local current_flags = self:GetCustomVmtFlags() or ""
-				if current_flags == "" then
-					self:SetCustomVmtFlags(line)
+					func(self, v)
 				else
-					self:SetCustomVmtFlags(current_flags .. "\n" .. line)
+					table.insert(errors,k)
+					if dump_vmt_when_load_vmt:GetInt() == 2 and not silent then
+						pac.Message("cannot convert material parameter " .. k)
+					end
+					local line = (orig_k:StartWith("$") and orig_k or "$" .. orig_k) .. " \"" .. tostring(v) .. "\""
+					local current_flags = self:GetCustomVmtFlags() or ""
+					if current_flags == "" then
+						self:SetCustomVmtFlags(line)
+					else
+						self:SetCustomVmtFlags(current_flags .. "\n" .. line)
+					end
 				end
 			end
 		end
