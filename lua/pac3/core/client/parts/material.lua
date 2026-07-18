@@ -167,34 +167,37 @@ for shader_name, groups in pairs(shader_params.shaders) do
 			inner_vmt = vmt
 		end
 
-		if name then
-			if (self.Notes == "") or (string.sub(self.Notes, 1, 15) == "last loaded VMT") then
-				self:SetNotes("last loaded VMT: " .. name)
+		if not silent then
+			if name then
+				if (self.Notes == "") or (string.sub(self.Notes, 1, 15) == "last loaded VMT") then
+					self:SetNotes("last loaded VMT: " .. name)
+				end
 			end
-		end
 
-		for k,v in pairs(self:GetVars()) do
-			local param = PART.ShaderParams[k]
-			if param and param.default ~= nil then
-				self["Set" .. k](self, param.default)
+			--  this should hopefully avoid resetting absolutely every value, which was what happened earlier
+			for k,v in pairs(self:GetVars()) do
+				local param = PART.ShaderParams[k]
+				if param and param.default ~= nil then
+					self["Set" .. k](self, param.default)
+				end
+				if param and param.type == "texture" then
+					self["Set" .. k](self, "")
+				end
 			end
-			if param and param.type == "texture" then
-				self["Set" .. k](self, "")
-			end
-		end
 
-		if dump_vmt_when_load_vmt:GetInt() == 1 then
-			print("====== VMT loaded: " .. (name or "raw string"))
-		elseif dump_vmt_when_load_vmt:GetInt() == 2 then
-			print("\n====== "  .. (name or "raw string") .. " raw VMT text:\n")
-			print(str)
-			print("====== extracted table:\n")
-			PrintTable(inner_vmt)
-			print("\n======")
+			if dump_vmt_when_load_vmt:GetInt() == 1 then
+				print("====== VMT loaded: " .. (name or "raw string"))
+			elseif dump_vmt_when_load_vmt:GetInt() == 2 then
+				print("\n====== "  .. (name or "raw string") .. " raw VMT text:\n")
+				print(str)
+				print("====== extracted table:\n")
+				PrintTable(inner_vmt)
+				print("\n======")
+			end
 		end
 
 		local errors = {"cannot convert material parameter:"}
-		self:SetCustomVmtFlags("")
+		if not silent then self:SetCustomVmtFlags("") end
 		for k,v in pairs(inner_vmt) do
 			if type(k) == "string" then
 				local orig_k = k
