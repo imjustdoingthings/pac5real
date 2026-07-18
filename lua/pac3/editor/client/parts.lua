@@ -3949,9 +3949,9 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 			pac.Message("VMT file copied to clipboard!")
 		end):SetIcon("icon16/page_copy.png")
 
-		export_submenu:AddOption("to pac3 folder (data/pac3/vmt_exports)", function()
+		export_submenu:AddOption("to pac3 folder (data/pac3/__materials)", function()
 			local vmt_str = obj:GetVmtString()
-			file.CreateDir("pac3/vmt_exports")
+			file.CreateDir("pac3/__materials")
 			local name = obj:GetName()
 			name = name:gsub("[^%w_%-]", "")
 			if name == "" then name = "material" end
@@ -3961,7 +3961,7 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 			else
 				filename = name .. ".vmt"
 			end
-			local path = "pac3/vmt_exports/" .. filename
+			local path = "pac3/__materials/" .. filename
 			file.Write(path, vmt_str)
 			pac.Message("VMT exported to data/" .. path)
 		end):SetIcon("icon16/disk.png")
@@ -3970,7 +3970,7 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 			local vmt_str = obj:GetVmtString()
 			-- strip illegal characters from the default name
 			local default = obj:GetName():gsub("[\\/|:?\"<>*]", "")
-			local default_path = "pac3/vmt_exports/" .. default
+			local default_path = "pac3/__materials/" .. default
 			if pace.VmtExport_include_datetime then
 				default_path = default_path .. "_" .. os.date("%Y%m%d_%H%M%S")
 			end
