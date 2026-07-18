@@ -7,6 +7,17 @@ local particle_col = Color(255, 255, 255)
 
 local BUILDER, PART = pac.PartTemplate("base_drawable")
 
+pac.PartsWithMeshParticles = pac.PartsWithMeshParticles or {}
+hook.Add("PostDrawTranslucentRenderables", "pac_mesh_particles", function()
+	for part, _ in pairs(pac.PartsWithMeshParticles) do
+		if IsValid(part) then
+			part:UpdateAndDrawMeshParticles()
+		else
+			pac.PartsWithMeshParticles[part] = nil
+		end
+	end
+end)
+
 PART.ClassName = "particles"
 PART.Group = 'effects'
 PART.Icon = 'icon16/water.png'
@@ -264,85 +275,91 @@ function PART:OnDraw()
 			self.nodraw = false
 		end
 	end
-	if self.MeshParticlesList then
-		local frametime_val = FrameTime()
-		local particle_matrix = Matrix()
-		for i = #self.MeshParticlesList, 1, -1 do
-			local p = self.MeshParticlesList[i]
-			if CurTime() > p.life or not IsValid(p.ent) then
-				if IsValid(p.ent) then SafeRemoveEntity(p.ent) end
-				table.remove(self.MeshParticlesList, i)
-			else
-				local frac = math.Clamp(1 - ((p.life - CurTime()) / p.die_time), 0, 1)
-				p.vel = p.vel + (p.gravity * frametime_val)
-				if p.air_res > 0 then p.vel = p.vel * math.exp(-p.air_res * frametime_val) end
+	self:EmitParticles(self.Follow and vector_origin or pos, self.Follow and angle_origin or ang, ang)
+end
+function PART:UpdateAndDrawMeshParticles()
+	if not self.MeshParticlesList then return end
+	local pos, ang = self:GetDrawPosition()
+	if not pos or not ang then return end
+	local frametime_val = FrameTime()
+	local particle_matrix = Matrix()
+	for i = #self.MeshParticlesList, 1, -1 do
+		local p = self.MeshParticlesList[i]
+		if CurTime() > p.life or not IsValid(p.ent) then
+			if IsValid(p.ent) then SafeRemoveEntity(p.ent) end
+			table.remove(self.MeshParticlesList, i)
+		else
+			local frac = math.Clamp(1 - ((p.life - CurTime()) / p.die_time), 0, 1)
+			p.vel = p.vel + (p.gravity * frametime_val)
+			if p.air_res > 0 then p.vel = p.vel * math.exp(-p.air_res * frametime_val) end
 
-				local oldpos = p.pos or p.ent:GetPos()
-				local newpos = oldpos + p.vel * frametime_val
+			local oldpos = p.pos or p.ent:GetPos()
+			local newpos = oldpos + p.vel * frametime_val
 
-				if p.collide then
-					local tr = util.TraceLine({start = oldpos, endpos = newpos, filter = p.ent})
-					if tr.Hit then
-						newpos = tr.HitPos + tr.HitNormal
-						if p.sliding then
-							p.vel.z = 0
-							p.bounce = 1
-						else
-							p.vel = p.vel * -p.bounce
-						end
+			if p.collide then
+				local tr = util.TraceLine({start = oldpos, endpos = newpos, filter = p.ent})
+				if tr.Hit then
+					newpos = tr.HitPos + tr.HitNormal
+					if p.sliding then
+						p.vel.z = 0
+						p.bounce = 1
+					else
+						p.vel = p.vel * -p.bounce
 					end
 				end
-				p.pos = newpos
-				p.ent:SetPos(newpos)
-				local newang = p.ent:GetAngles()
-				newang = newang + p.ang_vel * frametime_val
-				if p.roll_speed ~= 0 then newang.r = newang.r + p.roll_speed * frametime_val end
-				p.ent:SetAngles(newang)
-
-				local c1r, c1g, c1b = p.color1.r, p.color1.g, p.color1.b
-				local c2r, c2g, c2b = p.color2.r, p.color2.g, p.color2.b
-				particle_col.r = Lerp(frac, c1r, c2r)
-				particle_col.g = Lerp(frac, c1g, c2g)
-				particle_col.b = Lerp(frac, c1b, c2b)
-				particle_col.a = Lerp(frac, p.start_a, p.end_a)
-				p.ent:SetColor(particle_col)
-
-				local size = math.max(Lerp(frac, p.start_size, p.end_size) / 10, 0.001)
-				p.ent:SetModelScale(size, 0)
-				p.ent:SetupBones()
-				local override_mat = nil
-				if self.Materialm and self.Material ~= "effects/slime1" then
-					override_mat = self.Materialm
-				elseif self.Material ~= "" and self.Material ~= "effects/slime1" then
-					override_mat = pac.Material(self.Material, self)
-				end
-				if override_mat then
-					render.MaterialOverride(override_mat)
-				end
-				render.SetColorModulation(particle_col.r / 255, particle_col.g / 255, particle_col.b / 255)
-				render.SetBlend(particle_col.a / 255)
-
-				if not self.Lighting then render.SuppressEngineLighting(true) end
-
-				if self.Follow then
-					cam.Start3D(WorldToLocal(EyePos(), EyeAngles(), pos, ang))
-					if self.IgnoreZ then cam.IgnoreZ(true) end
-					p.ent:DrawModel()
-					if self.IgnoreZ then cam.IgnoreZ(false) end
-					cam.End3D()
-				else
-					p.ent:DrawModel()
-				end
-
-				if not self.Lighting then render.SuppressEngineLighting(false) end
-				if override_mat then render.MaterialOverride() end
-				render.SetColorModulation(1, 1, 1)
-				render.SetBlend(1)
 			end
+			p.pos = newpos
+			p.ent:SetPos(newpos)
+			local newang = p.ent:GetAngles()
+			newang = newang + p.ang_vel * frametime_val
+			if p.roll_speed ~= 0 then newang.r = newang.r + p.roll_speed * frametime_val end
+			p.ent:SetAngles(newang)
+
+			local c1r, c1g, c1b = p.color1.r, p.color1.g, p.color1.b
+			local c2r, c2g, c2b = p.color2.r, p.color2.g, p.color2.b
+			particle_col.r = Lerp(frac, c1r, c2r)
+			particle_col.g = Lerp(frac, c1g, c2g)
+			particle_col.b = Lerp(frac, c1b, c2b)
+			particle_col.a = Lerp(frac, p.start_a, p.end_a)
+			p.ent:SetColor(particle_col)
+
+			local size = math.max(Lerp(frac, p.start_size, p.end_size) / 10, 0.001)
+			p.ent:SetModelScale(size, 0)
+			p.ent:SetupBones()
+			local override_mat = nil
+			if self.Materialm and self.Material ~= "effects/slime1" then
+				override_mat = self.Materialm
+			elseif self.Material ~= "" and self.Material ~= "effects/slime1" then
+				override_mat = pac.Material(self.Material, self)
+			end
+			if override_mat then
+				render.MaterialOverride(override_mat)
+			end
+			render.SetColorModulation(particle_col.r / 255, particle_col.g / 255, particle_col.b / 255)
+			render.SetBlend(particle_col.a / 255)
+
+			if not self.Lighting then render.SuppressEngineLighting(true) end
+
+			if self.Follow then
+				cam.Start3D(WorldToLocal(EyePos(), EyeAngles(), pos, ang))
+				if self.IgnoreZ then cam_IgnoreZ(true) end
+				p.ent:DrawModel()
+				if self.IgnoreZ then cam_IgnoreZ(false) end
+				cam.End3D()
+			else
+				p.ent:DrawModel()
+			end
+
+			if not self.Lighting then render.SuppressEngineLighting(false) end
+			if override_mat then render.MaterialOverride() end
+			render.SetColorModulation(1, 1, 1)
+			render.SetBlend(1)
 		end
 	end
-
-	self:EmitParticles(self.Follow and vector_origin or pos, self.Follow and angle_origin or ang, ang)
+	if #self.MeshParticlesList == 0 then
+		pac.PartsWithMeshParticles[self] = nil
+		self.MeshParticlesList = nil
+	end
 end
 function PART:OnRemove()
 	self:ClearMeshParticles()
@@ -356,6 +373,7 @@ function PART:ClearMeshParticles()
 		end
 		self.MeshParticlesList = nil
 	end
+	pac.PartsWithMeshParticles[self] = nil
 end
 
 function PART:SetMeshParticle(b)
@@ -674,7 +692,7 @@ function PART:EmitParticles(pos, ang, real_ang)
 								scale = parent.Scale * parent.Size
 							end
 						end
-						
+
 						if scale == Vector(1, 1, 1) and IsValid(spawn_owner) and spawn_owner.GetModelScale then
 							local s = spawn_owner:GetModelScale()
 							scale = Vector(s, s, s)
@@ -771,6 +789,7 @@ function PART:EmitParticles(pos, ang, real_ang)
 								color1 = self.Color1,
 								color2 = self.ColorRamp and self.Color2 or self.Color1
 							}
+							pac.PartsWithMeshParticles[self] = self
 						end
 					end
 				end

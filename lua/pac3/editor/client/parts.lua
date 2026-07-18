@@ -3997,7 +3997,7 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 			pace.VmtExport_include_datetime = b
 		end
 
-		local import_submenu, import_pnl = menu:AddSubMenu("Import VMT")
+		local import_submenu, import_pnl = menu:AddSubMenu("import .VMT")
 		import_pnl:SetImage("icon16/page_add.png")
 
 		import_submenu:AddOption("from clipboard", function()
