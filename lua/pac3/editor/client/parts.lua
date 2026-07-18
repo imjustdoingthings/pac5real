@@ -2659,7 +2659,6 @@ local part_classes_with_quicksetups = {
 	projectile = true,
 	entity2 = true,
 	model2 = true,
-	material = true,
 	group = true,
 	camera = true,
 	faceposer = true,
@@ -2752,11 +2751,6 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 			end):SetIcon("icon16/table_multiple.png")
 	end
 
-	if obj.ClassName == "material" then
-		main:AddOption("export to VMT (saves to clipboard/disk)", function()
-			obj:ExportVmt()
-		end):SetImage("icon16/page_go.png")
-	end
 
 	local function install_submaterial_options(menu)
 		local mats = obj:GetOwner():GetMaterials()
@@ -3944,6 +3938,12 @@ end
 --these are more to perform an action that doesn't really affect many different parameters. maybe one or two at most
 function pace.AddClassSpecificPartMenuComponents(menu, obj)
 	if obj.Notes == "showhidetest" then menu:AddOption("(hide/show test) reset", function() obj:CallRecursive("OnShow") end):SetIcon("icon16/star.png") end
+
+	if obj.ClassName == "material" then
+		menu:AddOption("export to VMT (saves to clipboard/disk)", function()
+			obj:ExportVmt()
+		end):SetImage("icon16/page_go.png")
+	end
 
 	if obj.ClassName == "camera" then
 		if not obj:IsHidden() then
