@@ -515,6 +515,12 @@ function PART:EmitParticles(pos, ang, real_ang)
 					end
 				end
 				if model_path ~= "" then
+					--  debugging
+					if not self.last_debug_print or self.last_debug_print < CurTime() then
+						self.last_debug_print = CurTime() + 1
+						pac.Message("mesh particle emitted: model_path = ", model_path, " spawn_owner = ", tostring(spawn_owner), " SpawnOnBones = ", tostring(self.SpawnOnBones), " SpawnOnMesh = ", tostring(self.SpawnOnMesh), " particle_pos = ", tostring(particle_pos), " emitter_pos = ", tostring(base_pos))
+					end
+
 					self.MeshParticlesList = self.MeshParticlesList or {}
 					if #self.MeshParticlesList < 100 then
 						local ent_model = pac.CreateEntity(model_path)
