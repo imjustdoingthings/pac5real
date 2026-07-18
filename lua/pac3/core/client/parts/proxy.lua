@@ -2065,14 +2065,11 @@ function PART:OnThink(to_hide)
 	self:CalcVelocity()
 
 	if self.has_extras then --pre-calculate the extra expressions if needed
-		for i = 1, 5, 1 do
-			if self["Extra" .. i] ~= "" then
-				local ok, x, y, z = self:RunExpression(self["Extra" .. i .. "Func"])
-				if ok then
-					self["feedback_extra" .. i] = x
-				end
-			end
-		end
+		if self.Extra1 ~= "" then local ok, x, y, z = self:RunExpression(self.Extra1Func) if ok then self.feedback_extra1 = x end end
+		if self.Extra2 ~= "" then local ok, x, y, z = self:RunExpression(self.Extra2Func) if ok then self.feedback_extra2 = x end end
+		if self.Extra3 ~= "" then local ok, x, y, z = self:RunExpression(self.Extra3Func) if ok then self.feedback_extra3 = x end end
+		if self.Extra4 ~= "" then local ok, x, y, z = self:RunExpression(self.Extra4Func) if ok then self.feedback_extra4 = x end end
+		if self.Extra5 ~= "" then local ok, x, y, z = self:RunExpression(self.Extra5Func) if ok then self.feedback_extra5 = x end end
 	end
 
 	local ExpressionFunc = self.ExpressionFunc
@@ -2246,7 +2243,7 @@ function PART:OnThink(to_hide)
 		end
 	end
 
-	if table.Count(self.invalid_parts_in_expression) > 0 then
+	if next(self.invalid_parts_in_expression) ~= nil then
 		local error_msg = ""
 		for str, message in pairs(self.invalid_parts_in_expression) do
 			error_msg = error_msg .. " " .. message .. "\n"
@@ -2255,9 +2252,15 @@ function PART:OnThink(to_hide)
 	end
 	if playerowner then
 		if self.PreviewOutput then
-			pac.AddHook("HUDPaint", "proxy" .. self.UniqueID, function() draw_proxy_text(self, str) end)
+			if not self.ProxyDrawFunc then
+				self.ProxyDrawFunc = function() draw_proxy_text(self) end
+				pac.AddHook("HUDPaint", "proxy" .. self.UniqueID, self.ProxyDrawFunc)
+			end
 		else
-			pac.RemoveHook("HUDPaint", "proxy" .. self.UniqueID)
+			if self.ProxyDrawFunc then
+				self.ProxyDrawFunc = nil
+				pac.RemoveHook("HUDPaint", "proxy" .. self.UniqueID)
+			end
 		end
 	end
 
