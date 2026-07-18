@@ -311,12 +311,23 @@ function PART:OnDraw()
 	self:EmitParticles(self.Follow and vector_origin or pos, self.Follow and angle_origin or ang, ang)
 end
 function PART:OnRemove()
+	self:ClearMeshParticles()
+end
+
+function PART:ClearMeshParticles()
 	if self.MeshParticlesList then
 		for i = 1, #self.MeshParticlesList do
 			local p = self.MeshParticlesList[i]
 			if IsValid(p.ent) then SafeRemoveEntity(p.ent) end
 		end
 		self.MeshParticlesList = nil
+	end
+end
+
+function PART:SetMeshParticle(b)
+	self.MeshParticle = b
+	if not b then
+		self:ClearMeshParticles()
 	end
 end
 
@@ -408,10 +419,22 @@ function PART:EmitParticles(pos, ang, real_ang)
 			local roll = math.Rand(-self.RollDelta, self.RollDelta)
 			local particle_pos = base_pos
 
-			local spawn_owner = self:GetOwner()
+			-- resolve the entity to use for bone and mesh spawning
+			-- GetOwner() returns the clientside model entity
+			-- pcall guards against crashes in the GetOwner chain
+			local spawn_owner = nil
 			local target_part = GetTargetPart(self, self.SpawnTarget)
-			if target_part and IsValid(target_part:GetOwner()) then
-				spawn_owner = target_part:GetOwner()
+			if target_part then
+				local ok, owner = pcall(target_part.GetOwner, target_part)
+				if ok and IsValid(owner) then
+					spawn_owner = owner
+				end
+			end
+			if not IsValid(spawn_owner) then
+				local ok, self_owner = pcall(self.GetOwner, self)
+				if ok and IsValid(self_owner) then
+					spawn_owner = self_owner
+				end
 			end
 
 			if self.SpawnOnBones then
@@ -419,8 +442,15 @@ function PART:EmitParticles(pos, ang, real_ang)
 					local count = spawn_owner:GetBoneCount()
 					if count and count > 0 then
 						local bone = math.random(0, count - 1)
-						local bpos = spawn_owner:GetBonePosition(bone)
-						if bpos then particle_pos = bpos end
+						local bpos, bang = spawn_owner:GetBonePosition(bone)
+						if bpos and bpos ~= spawn_owner:GetPos() then
+							particle_pos = bpos
+						elseif bpos then
+							local matrix = spawn_owner:GetBoneMatrix(bone)
+							if matrix then
+								particle_pos = matrix:GetTranslation()
+							end
+						end
 					end
 				end
 			elseif self.SpawnOnMesh then
