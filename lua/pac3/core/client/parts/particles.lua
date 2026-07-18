@@ -271,6 +271,7 @@ function PART:OnDraw()
 
 				local size = math.max(Lerp(frac, p.start_size, p.end_size) / 10, 0.001)
 				p.ent:SetModelScale(size, 0)
+				p.ent:SetupBones()
 				local override_mat = nil
 				if self.Materialm and self.Material ~= "effects/slime1" then
 					override_mat = self.Materialm
@@ -441,15 +442,22 @@ function PART:EmitParticles(pos, ang, real_ang)
 			end
 
 			if self.SpawnOnBones then
-				if IsValid(spawn_owner) and spawn_owner.GetBoneCount then
-					local count = spawn_owner:GetBoneCount()
+				local bone_owner = spawn_owner
+				if target_part and target_part.BoneMerge then
+					local ok_parent, parent_owner = pcall(target_part.GetParentOwner, target_part)
+					if ok_parent and IsValid(parent_owner) then
+						bone_owner = parent_owner
+					end
+				end
+				if IsValid(bone_owner) and bone_owner.GetBoneCount then
+					local count = bone_owner:GetBoneCount()
 					if count and count > 0 then
 						local bone = math.random(0, count - 1)
-						local bpos, bang = spawn_owner:GetBonePosition(bone)
-						if bpos and bpos ~= spawn_owner:GetPos() then
+						local bpos, bang = bone_owner:GetBonePosition(bone)
+						if bpos and bpos ~= bone_owner:GetPos() then
 							particle_pos = bpos
 						elseif bpos then
-							local matrix = spawn_owner:GetBoneMatrix(bone)
+							local matrix = bone_owner:GetBoneMatrix(bone)
 							if matrix then
 								particle_pos = matrix:GetTranslation()
 							end
