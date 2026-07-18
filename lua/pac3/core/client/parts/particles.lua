@@ -3,7 +3,22 @@ local vector_origin = vector_origin
 local FrameTime = FrameTime
 local angle_origin = Angle(0,0,0)
 local WorldToLocal = WorldToLocal
-
+local particle_col = Color(255, 255, 255)
+local function GetTargetPart(self, uid_or_name)
+	if not uid_or_name or uid_or_name == "" then return nil end
+	local owner = self:GetPlayerOwner()
+	if not IsValid(owner) then return nil end
+	local part = pac.GetPartFromUniqueID(pac.Hash(owner), uid_or_name)
+	if not part then part = pac.FindPartByPartialUniqueID(pac.Hash(owner), uid_or_name) end
+	if not part then
+		for _, p in pairs(pac.GetParts(true)) do
+			if p:GetPlayerOwner() == owner and p.Name == uid_or_name then
+				return p
+			end
+		end
+	end
+	return part
+end
 local BUILDER, PART = pac.PartTemplate("base_drawable")
 
 PART.ClassName = "particles"
@@ -34,8 +49,9 @@ BUILDER:StartStorableVars()
 		BUILDER:GetSet("FireDuration", 0, {description = "how long to fire particles\n0 = infinite"})
 		BUILDER:GetSet("Decay", 0, {description = "rate of decay for particle count, in particles per second\n0 = no decay\na positive number means simple decay starting at showtime\na negative number means delayed decay so that it reaches 0 at the time of 'fire duration'"})
 		BUILDER:GetSet("FractionalChance", false, {description = "If 'number particles' has decimals, there is a chance to emit another particle\ne.g. 0.5 is 50% chance to emit a particle\ne.g. 1.25 is 25% chance to fire two / 75% to fire one particle)"})
-		BUILDER:GetSet("SpawnOnMesh", false, {description = "Spawns particles across the triangles/faces of the owner's model. This works based on the default model's resting pose (so, the T-pose); it won't follow any animations."})
-		BUILDER:GetSet("SpawnOnBones", false, {description = "Randomly distributes particles across the owner's animated bones/hitboxes. Functionally, this is an alternative for spawning particles on a mesh, but it inherently sacrifices control."})
+		BUILDER:GetSet("SpawnTarget", "", {editor_panel = "part"})
+		BUILDER:GetSet("SpawnOnMesh", false, {description = "Spawns particles across the triangles/faces of the target part's model. This calculates based on the default model's resting pose/t-pose, so it won't follow animations."})
+		BUILDER:GetSet("SpawnOnBones", false, {description = "Randomly distributes particles across the target part's animated bones/hitboxes. Functionally, this is an alternative for spawning particles on a mesh, but it inherently sacrifices control."})
 	BUILDER:SetPropertyGroup("mesh particles")
 		BUILDER:GetSet("MeshParticle", false, {description = "Use 3D models as particles instead of 2D sprites. However, there is a hard ca to 100 max active particles at a time."})
 		BUILDER:GetSet("ParticleModel", "models/props_junk/watermelon01.mdl", {editor_panel = "model"})
@@ -226,6 +242,7 @@ function PART:OnDraw()
 	end
 	if self.MeshParticlesList then
 		local frametime_val = FrameTime()
+		local particle_matrix = Matrix()
 		for i = #self.MeshParticlesList, 1, -1 do
 			local p = self.MeshParticlesList[i]
 			if CurTime() > p.life or not IsValid(p.ent) then
@@ -234,7 +251,7 @@ function PART:OnDraw()
 			else
 				local frac = math.Clamp(1 - ((p.life - CurTime()) / p.die_time), 0, 1)
 				p.vel = p.vel + (p.gravity * frametime_val)
-				if p.air_res > 0 then p.vel = p.vel - (p.vel * p.air_res * frametime_val) end
+				if p.air_res > 0 then p.vel = p.vel * math.exp(-p.air_res * frametime_val) end
 
 				local oldpos = p.ent:GetPos()
 				local newpos = oldpos + p.vel * frametime_val
@@ -252,15 +269,28 @@ function PART:OnDraw()
 					end
 				end
 				p.ent:SetPos(newpos)
+				local newang = p.ent:GetAngles()
+				newang = newang + p.ang_vel * frametime_val
+				if p.roll_speed ~= 0 then newang.r = newang.r + p.roll_speed * frametime_val end
+				p.ent:SetAngles(newang)
 
 				local c1r, c1g, c1b = p.color1.r, p.color1.g, p.color1.b
 				local c2r, c2g, c2b = p.color2.r, p.color2.g, p.color2.b
-				p.ent:SetColor(Color(Lerp(frac, c1r, c2r), Lerp(frac, c1g, c2g), Lerp(frac, c1b, c2b)))
+				particle_col.r = Lerp(frac, c1r, c2r)
+				particle_col.g = Lerp(frac, c1g, c2g)
+				particle_col.b = Lerp(frac, c1b, c2b)
+				particle_col.a = Lerp(frac, p.start_a, p.end_a)
+				p.ent:SetColor(particle_col)
 
-				local size = math.max(Lerp(frac, p.start_size, p.end_size) / 20, 0.001)
-				local mat = Matrix()
-				mat:Scale(Vector(size, size, size))
-				p.ent:EnableMatrix("RenderMultiply", mat)
+				local size = math.max(Lerp(frac, p.start_size, p.end_size) / 10, 0.001)
+				particle_matrix:Identity()
+				particle_matrix:Scale(Vector(size, size, size))
+				p.ent:EnableMatrix("RenderMultiply", particle_matrix)
+
+				if self.Materialm then render.MaterialOverride(self.Materialm)
+				elseif self.Material ~= "" then render.MaterialOverride(pac.Material(self.Material, self)) end
+
+				if not self.Lighting then render.SuppressEngineLighting(true) end
 
 				if self.Follow then
 					cam.Start3D(WorldToLocal(EyePos(), EyeAngles(), pos, ang))
@@ -271,6 +301,9 @@ function PART:OnDraw()
 				else
 					p.ent:DrawModel()
 				end
+
+				if not self.Lighting then render.SuppressEngineLighting(false) end
+				if self.Materialm or self.Material ~= "" then render.MaterialOverride() end
 			end
 		end
 	end
@@ -374,20 +407,25 @@ function PART:EmitParticles(pos, ang, real_ang)
 
 			local roll = math.Rand(-self.RollDelta, self.RollDelta)
 			local particle_pos = base_pos
+
+			local spawn_owner = self:GetOwner()
+			local target_part = GetTargetPart(self, self.SpawnTarget)
+			if target_part and IsValid(target_part:GetOwner()) then
+				spawn_owner = target_part:GetOwner()
+			end
+
 			if self.SpawnOnBones then
-				local owner = self:GetOwner()
-				if IsValid(owner) and owner.GetBoneCount then
-					local count = owner:GetBoneCount()
+				if IsValid(spawn_owner) and spawn_owner.GetBoneCount then
+					local count = spawn_owner:GetBoneCount()
 					if count and count > 0 then
 						local bone = math.random(0, count - 1)
-						local bpos = owner:GetBonePosition(bone)
+						local bpos = spawn_owner:GetBonePosition(bone)
 						if bpos then particle_pos = bpos end
 					end
 				end
 			elseif self.SpawnOnMesh then
-				local owner = self:GetOwner()
-				if IsValid(owner) and owner:GetModel() then
-					local mdl = owner:GetModel()
+				if IsValid(spawn_owner) and spawn_owner:GetModel() then
+					local mdl = spawn_owner:GetModel()
 					if not pac.MeshTriangles then pac.MeshTriangles = {} end
 					if not pac.MeshTriangles[mdl] then
 						local meshes = util.GetModelMeshes(mdl)
@@ -412,7 +450,7 @@ function PART:EmitParticles(pos, ang, real_ang)
 						local r1, r2 = math.random(), math.random()
 						if r1 + r2 > 1 then r1 = 1 - r1; r2 = 1 - r2 end
 						local lpos = tri[1] + (tri[2] - tri[1]) * r1 + (tri[3] - tri[1]) * r2
-						particle_pos = owner:LocalToWorld(lpos)
+						particle_pos = spawn_owner:LocalToWorld(lpos)
 					end
 				end
 			end
@@ -437,16 +475,32 @@ function PART:EmitParticles(pos, ang, real_ang)
 					if IsValid(ent_model) then
 						ent_model:SetNoDraw(true)
 						ent_model:SetPos(particle_pos)
-						ent_model:SetAngles(ang:Angle())
+
+						if self.Additive then ent_model:SetRenderMode(RENDERMODE_TRANSADD)
+						elseif self.Translucent or self.StartAlpha < 255 or self.EndAlpha < 255 then ent_model:SetRenderMode(RENDERMODE_TRANSALPHA)
+						end
+
+						if self.ZeroAngle then ent_model:SetAngles(Angle(0,0,0))
+						else ent_model:SetAngles(ang:Angle() + self.ParticleAngle) end
+
+						local spawn_vec = Vector(vec.x, vec.y, vec.z)
+						if self.OwnerVelocityMultiplier ~= 0 then
+							local root_owner = self:GetRootPart():GetOwner()
+							if root_owner:IsValid() then spawn_vec = spawn_vec + (root_owner:GetVelocity() * self.OwnerVelocityMultiplier) end
+						end
 
 						local life = math.Clamp(self.DieTime, 0.0001, 50)
 						if self.AddFrametimeLife then life = life + frametime_val end
 
-						table.insert(self.MeshParticlesList, {
+						local cur_time = CurTime()
+						self.MeshParticlesList[#self.MeshParticlesList + 1] = {
 							ent = ent_model,
-							vel = (vec + ang) * self.Velocity,
-							life = CurTime() + life,
-							start_time = CurTime(),
+							vel = (spawn_vec + ang) * self.Velocity,
+							ang_vel = Angle(self.ParticleAngleVelocity.x, self.ParticleAngleVelocity.y, self.ParticleAngleVelocity.z),
+							roll_speed = self.RandomRollSpeed * 36,
+							roll_delta = self.RollDelta + roll,
+							life = cur_time + life,
+							start_time = cur_time,
 							die_time = life,
 							gravity = self.Gravity,
 							bounce = self.Bounce,
@@ -455,9 +509,11 @@ function PART:EmitParticles(pos, ang, real_ang)
 							sliding = self.Sliding,
 							start_size = self.StartSize,
 							end_size = self.EndSize,
+							start_a = self.StartAlpha,
+							end_a = self.EndAlpha,
 							color1 = self.Color1,
 							color2 = self.ColorRamp and self.Color2 or self.Color1
-						})
+						}
 					end
 				end
 				continue
