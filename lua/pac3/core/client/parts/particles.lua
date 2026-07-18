@@ -4,31 +4,7 @@ local FrameTime = FrameTime
 local angle_origin = Angle(0,0,0)
 local WorldToLocal = WorldToLocal
 local particle_col = Color(255, 255, 255)
-local function GetTargetPart(self, uid_or_name)
-	if not uid_or_name or uid_or_name == "" then return nil end
-	local owner = self:GetPlayerOwner()
-	--standard lookup
-	if IsValid(owner) then
-		local part = pac.GetPartFromUniqueID(pac.Hash(owner), uid_or_name)
-		if part then return part end
-		part = pac.FindPartByPartialUniqueID(pac.Hash(owner), uid_or_name)
-		if part then return part end
-	end
-	-- search all parts matching owner
-	local hash_owner = IsValid(owner) and owner or nil
-	for _, p in pairs(pac.GetParts(true)) do
-		if (p.UniqueID == uid_or_name or p.Name == uid_or_name) and (not hash_owner or p:GetPlayerOwner() == hash_owner) then
-			return p
-		end
-	end
-	for _, p in pairs(pac.GetParts(true)) do
-		if p.UniqueID == uid_or_name or p.Name == uid_or_name then
-			return p
-		end
-	end
 
-	return nil
-end
 local BUILDER, PART = pac.PartTemplate("base_drawable")
 
 PART.ClassName = "particles"
@@ -59,7 +35,7 @@ BUILDER:StartStorableVars()
 		BUILDER:GetSet("FireDuration", 0, {description = "how long to fire particles\n0 = infinite"})
 		BUILDER:GetSet("Decay", 0, {description = "rate of decay for particle count, in particles per second\n0 = no decay\na positive number means simple decay starting at showtime\na negative number means delayed decay so that it reaches 0 at the time of 'fire duration'"})
 		BUILDER:GetSet("FractionalChance", false, {description = "If 'number particles' has decimals, there is a chance to emit another particle\ne.g. 0.5 is 50% chance to emit a particle\ne.g. 1.25 is 25% chance to fire two / 75% to fire one particle)"})
-		BUILDER:GetSet("SpawnTarget", "", {editor_panel = "part"})
+
 		BUILDER:GetSet("SpawnOnMesh", false, {description = "Spawns particles across the triangles/faces of the target part's model. This calculates based on the default model's resting pose/t-pose, so it won't follow animations."})
 		BUILDER:GetSet("SpawnOnBones", false, {description = "Randomly distributes particles across the target part's animated bones/hitboxes. Functionally, this is an alternative for spawning particles on a mesh, but it inherently sacrifices control."})
 	BUILDER:SetPropertyGroup("mesh particles")
@@ -437,8 +413,8 @@ function PART:EmitParticles(pos, ang, real_ang)
 			local roll = math.Rand(-self.RollDelta, self.RollDelta)
 			local particle_pos = base_pos
 			local spawn_owner = nil
-			local target_part = GetTargetPart(self, self.SpawnTarget)
-			if not target_part and IsValid(self.TargetEntity) and self.TargetEntity ~= self then
+			local target_part = nil
+			if IsValid(self.TargetEntity) and self.TargetEntity ~= self then
 				target_part = self.TargetEntity
 			end
 
