@@ -4069,7 +4069,11 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 			text.OnTextChanged = function()
 				local val = text:GetText()
 				if val and val ~= "" then
-					obj:ImportVmt(val, "editor", true)
+					timer.Create("pac3_vmt_editor_debounce", 0.4, 1, function()
+						if IsValid(frame) then
+							obj:ImportVmt(val, "editor", true)
+						end
+					end)
 				end
 			end
 			local old_OnClose = frame.OnClose
