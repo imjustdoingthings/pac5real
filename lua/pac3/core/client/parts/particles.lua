@@ -239,7 +239,7 @@ function PART:OnDraw()
 				p.vel = p.vel + (p.gravity * frametime_val)
 				if p.air_res > 0 then p.vel = p.vel * math.exp(-p.air_res * frametime_val) end
 
-				local oldpos = p.ent:GetPos()
+				local oldpos = p.pos or p.ent:GetPos()
 				local newpos = oldpos + p.vel * frametime_val
 
 				if p.collide then
@@ -254,6 +254,7 @@ function PART:OnDraw()
 						end
 					end
 				end
+				p.pos = newpos
 				p.ent:SetPos(newpos)
 				local newang = p.ent:GetAngles()
 				newang = newang + p.ang_vel * frametime_val
@@ -540,6 +541,7 @@ function PART:EmitParticles(pos, ang, real_ang)
 							local cur_time = CurTime()
 							self.MeshParticlesList[#self.MeshParticlesList + 1] = {
 								ent = ent_model,
+								pos = particle_pos,
 								vel = (spawn_vec + ang) * self.Velocity,
 								ang_vel = Angle(self.ParticleAngleVelocity.x, self.ParticleAngleVelocity.y, self.ParticleAngleVelocity.z),
 								roll_speed = self.RandomRollSpeed * 36,
