@@ -832,7 +832,7 @@ function PART:EmitParticles(pos, ang, real_ang)
 					elseif self.PositionSpreadToAngle then
 						angle = (particle_pos - original_pos):Angle()
 					end
-					if self.3D then
+					if self["3D"] then
 						particle:SetAngles(angle)
 					else
 						particle:SetAngles(Angle(angle.r, 0, 0))
