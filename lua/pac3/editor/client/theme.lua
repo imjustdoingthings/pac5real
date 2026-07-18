@@ -17,9 +17,9 @@ local bg_dark = Color(45, 45, 45, 255)
 local bg_mid = Color(60, 60, 60, 255)
 local bg_light = Color(75, 75, 75, 255)
 local highlight = Color(90, 160, 220, 255)
-local text_normal = Color(220, 220, 220, 255)
+local text_normal = Color(255, 255, 255, 255)
 local text_hover = Color(255, 255, 255, 255)
-local text_dark = Color(150, 150, 150, 255)
+local text_dark = Color(180, 180, 180, 255)
 local border = Color(30, 30, 30, 255)
 
 SKIN.control_color = bg_mid

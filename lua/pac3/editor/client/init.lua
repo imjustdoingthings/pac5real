@@ -388,3 +388,12 @@ do
 end
 
 pace.RegisterPanels()
+
+hook.Add("ForceDermaSkin", "pac_editor_skin", function()
+	if pace and pace.Active then
+		local theme = GetConVar("pac_editor_theme"):GetString()
+		if theme and theme ~= "" and theme ~= "default" then
+			return theme
+		end
+	end
+end)
