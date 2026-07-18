@@ -238,12 +238,14 @@ for shader_name, groups in pairs(shader_params.shaders) do
 					if dump_vmt_when_load_vmt:GetInt() == 2 and not silent then
 						pac.Message("cannot convert material parameter " .. clean_k)
 					end
-					local line = (orig_k:StartWith("$") and orig_k or "$" .. orig_k) .. " \"" .. tostring(v) .. "\""
-					local current_flags = self:GetCustomVmtFlags() or ""
-					if current_flags == "" then
-						self:SetCustomVmtFlags(line)
-					else
-						self:SetCustomVmtFlags(current_flags .. "\n" .. line)
+					if not silent then
+						local line = (orig_k:StartWith("$") and orig_k or "$" .. orig_k) .. " \"" .. tostring(v) .. "\""
+						local current_flags = self:GetCustomVmtFlags() or ""
+						if current_flags == "" then
+							self:SetCustomVmtFlags(line)
+						else
+							self:SetCustomVmtFlags(current_flags .. "\n" .. line)
+						end
 					end
 				end
 			end
