@@ -3939,10 +3939,54 @@ end
 function pace.AddClassSpecificPartMenuComponents(menu, obj)
 	if obj.Notes == "showhidetest" then menu:AddOption("(hide/show test) reset", function() obj:CallRecursive("OnShow") end):SetIcon("icon16/star.png") end
 
-	if string.sub(obj.ClassName, 1, 9) == "material_" then
-		menu:AddOption("export to VMT (saves to clipboard/disk)", function()
-			obj:ExportVmt()
-		end):SetImage("icon16/page_go.png")
+	if string.find(obj.ClassName, "material") then
+		local export_submenu, export_pnl = menu:AddSubMenu("export as .VMT")
+		export_pnl:SetImage("icon16/page_go.png")
+
+		export_submenu:AddOption("to clipboard", function()
+			local vmt_str = obj:GetVmtString()
+			SetClipboardText(vmt_str)
+			pac.Message("VMT file copied to clipboard!")
+		end):SetIcon("icon16/page_copy.png")
+
+		export_submenu:AddOption("to pac3 folder (data/pac3/vmt_exports)", function()
+			local vmt_str = obj:GetVmtString()
+			file.CreateDir("pac3/vmt_exports")
+			local name = obj:GetName()
+			name = name:gsub("[^%w_%-]", "")
+			if name == "" then name = "material" end
+			local filename
+			if pace.VmtExport_include_datetime then
+				filename = name .. "_" .. os.date("%Y%m%d_%H%M%S") .. ".vmt"
+			else
+				filename = name .. ".vmt"
+			end
+			local path = "pac3/vmt_exports/" .. filename
+			file.Write(path, vmt_str)
+			pac.Message("VMT exported to data/" .. path)
+		end):SetIcon("icon16/disk.png")
+
+		export_submenu:AddOption("To custom path...", function()
+			local vmt_str = obj:GetVmtString()
+			Derma_StringRequest("to custom path", "enter file path (can only be relative to garrysmod/data/)", "pac3/my_material.vmt", function(path)
+				if path == "" then return end
+				if string.sub(path, -4) ~= ".vmt" then path = path .. ".vmt" end
+				local dir = string.GetPathFromFilename(path)
+				if dir ~= "" then file.CreateDir(dir) end
+				file.Write(path, vmt_str)
+				pac.Message("VMT exported to data/" .. path)
+			end)
+		end):SetIcon("icon16/folder_go.png")
+
+		export_submenu:AddSpacer()
+
+		local include_datetime = export_submenu:AddOption("include date and time?")
+		include_datetime:SetIsCheckable(true)
+		if pace.VmtExport_include_datetime == nil then pace.VmtExport_include_datetime = true end
+		include_datetime:SetChecked(pace.VmtExport_include_datetime)
+		function include_datetime.OnChecked(self, b)
+			pace.VmtExport_include_datetime = b
+		end
 	end
 
 	if obj.ClassName == "camera" then

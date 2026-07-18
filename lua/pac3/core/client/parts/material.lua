@@ -207,7 +207,7 @@ for shader_name, groups in pairs(shader_params.shaders) do
 		if #errors > 1 then self:SetWarning(table.concat(errors, "\n")) else self:SetWarning() end
 	end
 -- you can export VMTs from material parts now!
-	function PART:ExportVmt()
+	function PART:GetVmtString()
 		local out = {}
 		table_insert(out, '"' .. shader_name .. '"')
 		table_insert(out, '{')
@@ -250,16 +250,7 @@ for shader_name, groups in pairs(shader_params.shaders) do
 
 		table_insert(out, '}')
 
-		local str = table.concat(out, "\n")
-		SetClipboardText(str)
-
-		file.CreateDir("pac3/vmt_exports")
-		local path = "pac3/vmt_exports/" .. os.date("%Y%m%d_%H%M%S") .. ".vmt"
-		file.Write(path, str)
-
-		print("====== VMT Exported: " .. path)
-		print(str)
-		pac.Message("VMT exported to clipboard and data/" .. path)
+		return table.concat(out, "\n")
 	end
 
 	BUILDER:GetSet("MaterialOverride", "all", {enums = function(self, str)
