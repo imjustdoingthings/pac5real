@@ -888,7 +888,7 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 	local tree = vgui.Create("DTree", left_panel)
 	tree:Dock(FILL)
 	tree:DockMargin(0, 0, 0, 0)
-	tree:SetBackgroundColor(Color(240, 240, 240))
+	tree:SetBackgroundColor(Color(45, 45, 45))
 	frame.tree = tree
 	tree.OnNodeSelected = function (self, node)
 		if not IsValid(node.propPanel) then return end
@@ -928,7 +928,7 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 	frame.PropPanel:Dock(FILL)
 
 	function frame.PropPanel:Paint (w, h)
-		draw.RoundedBox(0, 0, 0, w, h, Color(240, 240, 240))
+		draw.RoundedBox(0, 0, 0, w, h, Color(45, 45, 45))
 	end
 
 	divider = vgui.Create("DHorizontalDivider", frame)
@@ -1054,7 +1054,7 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 				else
 					menu:AddOption("Disable Quick list build mode", function()
 						frame.QuickListBuildMode = nil frame.sound = ""
-						for i,v in ipairs(frame.lines) do if v.Columns then v.Columns[1]:SetColor(Color(0,0,0)) end end
+						for i,v in ipairs(frame.lines) do if v.Columns then v.Columns[1]:SetColor(Color(200,200,200)) end end
 					end)
 				end
 				menu:MakePopup() menu:RequestFocus()

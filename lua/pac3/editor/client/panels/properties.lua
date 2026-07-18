@@ -2214,8 +2214,8 @@ do -- base editable
 						{
 							lua = true,
 							nicename = "print all entities' health",
-							expression = "for _,ent in pairs(ents.GetAll()) do print(ent, ent:Health()) end",
-							explanation = "To showcase a basic for loop (using a table iterator), this will print the list of all entities\' health"
+							expression = "for _,ent in ents.Iterator() do print(ent, ent:Health()) end",
+							explanation = "To showcase a basic for loop (using an iterator), this will print the list of all entities\' health"
 						},
 						{
 							lua = true,
@@ -3644,7 +3644,7 @@ function pace.OpenTreeSearch()
 	function case_box:DoClick()
 		self.on = not self.on
 		if self.on then
-			self:SetColor(Color(0,0,0))
+			self:SetColor(Color(255,255,255))
 		else
 			self:SetColor(Color(150,150,150))
 		end
@@ -3653,7 +3653,7 @@ function pace.OpenTreeSearch()
 	function patterns:DoClick()
 		self.on = not self.on
 		if self.on then
-			self:SetColor(Color(0,0,0))
+			self:SetColor(Color(255,255,255))
 		else
 			self:SetColor(Color(150,150,150))
 		end
@@ -3758,7 +3758,7 @@ function pace.OpenTreeSearch()
 	range_label:SetSize(50,20)
 	range_label:SetPos(295,2)
 	range_label:SetText("0 / 0")
-	range_label:SetTextColor(Color(0,0,0))
+	range_label:SetTextColor(Color(200,200,200))
 
 	fwd:SetSize(25,20)
 	fwd:SetPos(375,2)

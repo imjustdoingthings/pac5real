@@ -122,6 +122,8 @@ for shader_name, groups in pairs(shader_params.shaders) do
 
 	-- move this to tools or something
 	BUILDER:GetSet("LoadVmt", "", {editor_panel = "material"})
+	BUILDER:GetSet("CustomVmtFlags", "", {editor_panel = "string"})
+	BUILDER:GetSet("ExportVmt", false)
 
 	function PART:SetLoadVmt(path)
 		if not path or path == "" then return end
@@ -156,7 +158,9 @@ for shader_name, groups in pairs(shader_params.shaders) do
 			print("\n======")
 		end
 		local errors = {"cannot convert material parameter:"}
+		self:SetCustomVmtFlags("")
 		for k,v in pairs(vmt) do
+			local orig_k = k
 			if k:StartWith("$") then k = k:sub(2) end
 
 			local func = self["Set" .. k]
@@ -191,9 +195,74 @@ for shader_name, groups in pairs(shader_params.shaders) do
 				if dump_vmt_when_load_vmt:GetInt() == 2 then
 					pac.Message("cannot convert material parameter " .. k)
 				end
+				local line = (orig_k:StartWith("$") and orig_k or "$" .. orig_k) .. " \"" .. tostring(v) .. "\""
+				local current_flags = self:GetCustomVmtFlags() or ""
+				if current_flags == "" then
+					self:SetCustomVmtFlags(line)
+				else
+					self:SetCustomVmtFlags(current_flags .. "\n" .. line)
+				end
 			end
 		end
 		if #errors > 1 then self:SetWarning(table.concat(errors, "\n")) else self:SetWarning() end
+	end
+-- you can export VMTs from material parts now!
+	function PART:SetExportVmt(b)
+		if b then
+			self.ExportVmt = false
+			local out = {}
+			table_insert(out, '"' .. shader_name .. '"')
+			table_insert(out, '{')
+
+			for k, info in pairs(PART.ShaderParams) do
+				local val = self[k]
+				if val ~= nil and val ~= info.default then
+					local key = "$" .. k
+					if info.type == "texture" then
+						if val ~= "" then
+							table_insert(out, '\t' .. key .. ' "' .. val .. '"')
+						end
+					elseif info.type == "color" then
+						local r, g, b = math.Round(val.x * 255), math.Round(val.y * 255), math.Round(val.z * 255)
+						table_insert(out, '\t' .. key .. ' "{ ' .. r .. ' ' .. g .. ' ' .. b .. ' }"')
+					elseif info.type == "vec3" or info.type == "vec2" then
+						if val.z then
+							table_insert(out, '\t' .. key .. ' "[ ' .. val.x .. ' ' .. val.y .. ' ' .. val.z .. ' ]"')
+						else
+							table_insert(out, '\t' .. key .. ' "[ ' .. val.x .. ' ' .. val.y .. ' ]"')
+						end
+					elseif info.is_flag then
+						if val then
+							table_insert(out, '\t' .. key .. ' 1')
+						end
+					elseif isbool(val) or info.type == "bool" then
+						table_insert(out, '\t' .. key .. ' ' .. (val and "1" or "0"))
+					else
+						table_insert(out, '\t' .. key .. ' ' .. tostring(val))
+					end
+				end
+			end
+
+			local custom = self:GetCustomVmtFlags()
+			if custom and custom ~= "" then
+				for line in custom:gmatch("[^\r\n]+") do
+					table_insert(out, '\t' .. line:Trim())
+				end
+			end
+
+			table_insert(out, '}')
+
+			local str = table.concat(out, "\n")
+			SetClipboardText(str)
+
+			file.CreateDir("pac3/vmt_exports")
+			local path = "pac3/vmt_exports/" .. os.date("%Y%m%d_%H%M%S") .. ".vmt"
+			file.Write(path, str)
+
+			print("====== VMT Exported: " .. path)
+			print(str)
+			pac.Message("VMT exported to clipboard and data/" .. path)
+		end
 	end
 
 	BUILDER:GetSet("MaterialOverride", "all", {enums = function(self, str)

@@ -205,7 +205,7 @@ function pace.SubmitPartNow(data, filter)
 			end
 		end
 	else
-		players = player.GetAll()
+		players = player.GetAll() -- needs to be player.GetAll() since players is used as a table and iterated with pairs() later
 	end
 
 	if filter == false then

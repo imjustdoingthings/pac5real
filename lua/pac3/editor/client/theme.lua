@@ -82,6 +82,33 @@ SKIN.Colours.Category.AltLine.Button_Selected = highlight
 
 SKIN.Colours.Label = SKIN.Colours.Label or {}
 SKIN.Colours.Label.Default = text_normal
+SKIN.Colours.Label.Bright = text_normal
+SKIN.Colours.Label.Dark = text_dark
+SKIN.Colours.Label.Highlight = highlight
+
+SKIN.Colours.Tab = SKIN.Colours.Tab or {}
+SKIN.Colours.Tab.Active = SKIN.Colours.Tab.Active or {}
+SKIN.Colours.Tab.Active.Normal = text_normal
+SKIN.Colours.Tab.Active.Hover = text_hover
+SKIN.Colours.Tab.Active.Down = text_hover
+SKIN.Colours.Tab.Active.Disabled = text_dark
+SKIN.Colours.Tab.Inactive = SKIN.Colours.Tab.Inactive or {}
+SKIN.Colours.Tab.Inactive.Normal = text_dark
+SKIN.Colours.Tab.Inactive.Hover = text_hover
+SKIN.Colours.Tab.Inactive.Down = text_hover
+SKIN.Colours.Tab.Inactive.Disabled = text_dark
+
+SKIN.Colours.Menu = SKIN.Colours.Menu or {}
+SKIN.Colours.Menu.Normal = text_normal
+SKIN.Colours.Menu.Hover = text_hover
+
+SKIN.Colours.MenuOption = SKIN.Colours.MenuOption or {}
+SKIN.Colours.MenuOption.Normal = text_normal
+SKIN.Colours.MenuOption.Hover = text_hover
+SKIN.Colours.MenuOption.Active = text_hover
+SKIN.Colours.MenuOption.Disabled = text_dark
+
+SKIN.Colours.TooltipText = text_normal
 
 -- Paint overrides
 function SKIN:PaintFrame(panel, w, h)
@@ -214,6 +241,57 @@ function SKIN:PaintTreeNodeButton(panel, w, h)
 		surface.SetDrawColor(bg_light)
 		surface.DrawRect(0, 0, w, h)
 	end
+end
+
+function SKIN:PaintTextEntry(panel, w, h)
+	if panel.m_bBackground then
+		if panel:HasFocus() then
+			surface.SetDrawColor(bg_light)
+		else
+			surface.SetDrawColor(bg_mid)
+		end
+		surface.DrawRect(0, 0, w, h)
+		surface.SetDrawColor(border)
+		surface.DrawOutlinedRect(0, 0, w, h)
+	end
+	panel:DrawTextEntryText(text_normal, highlight, text_normal)
+end
+
+function SKIN:PaintExpandButton(panel, w, h)
+	if not panel.m_bPainted then return end
+	-- draw the expand/collapse arrow in white so it's visible on dark backgrounds
+	local col = panel.Hovered and text_hover or text_normal
+	surface.SetDrawColor(col)
+	if panel:GetExpanded() then
+		-- down arrow (expanded)
+		local cx, cy = w / 2, h / 2
+		local sz = math.min(w, h) * 0.35
+		local verts = {
+			{x = cx - sz, y = cy - sz * 0.4},
+			{x = cx + sz, y = cy - sz * 0.4},
+			{x = cx, y = cy + sz * 0.6},
+		}
+		draw.NoTexture()
+		surface.DrawPoly(verts)
+	else
+		-- right arrow (collapsed)
+		local cx, cy = w / 2, h / 2
+		local sz = math.min(w, h) * 0.35
+		local verts = {
+			{x = cx - sz * 0.4, y = cy - sz},
+			{x = cx + sz * 0.6, y = cy},
+			{x = cx - sz * 0.4, y = cy + sz},
+		}
+		draw.NoTexture()
+		surface.DrawPoly(verts)
+	end
+end
+
+function SKIN:PaintTooltip(panel, w, h)
+	surface.SetDrawColor(bg_dark)
+	surface.DrawRect(0, 0, w, h)
+	surface.SetDrawColor(border)
+	surface.DrawOutlinedRect(0, 0, w, h)
 end
 
 function SKIN:PaintMenuBar(panel, w, h)

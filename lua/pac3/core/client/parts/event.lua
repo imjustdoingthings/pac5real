@@ -1248,7 +1248,9 @@ PART.OldEvents = {
 					filter = {ent}
 
 					if ignore_players then
-						table.Add(filter, player.GetAll())
+						for _, ply in player.Iterator() do
+							filter[#filter + 1] = ply
+						end
 					else -- Other options are redundant if ignoring players.
 						if ignore_you then
 							table.insert(filter, self:GetPlayerOwner())

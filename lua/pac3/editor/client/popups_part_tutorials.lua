@@ -341,7 +341,7 @@ function pac.InfoPopup(str, tbl, x, y)
 
 		--[[elseif tbl.obj_type == "cursor" then
 			self:SetPos(input.GetCursorPos())]]
-		
+
 		elseif tbl.obj_type == "tracking cursor" then
 			self:SetPos(input.GetCursorPos())
 
@@ -885,7 +885,7 @@ do
 			"Some example lua bits:\n"..
 			"\tif LocalPlayer():Health() > 0 then print(\"I'm alive\") RunConsoleCommand(\"say\", \"I\'m alive\") end\n"..
 			"\tfor i=0,100,1 do print(\"number\" .. i) end\n"..
-			"\tfor _,ent in pairs(ents.GetAll()) do print(ent, ent:Health()) end\n"..
+			"\tfor _,ent in ents.Iterator() do print(ent, ent:Health()) end\n".. -- micro optimizations
 			"\tlocal random_n = 1 + math.floor(math.random()*5) RunConsoleCommand(\"pac_event\", \"event_\"..random_n)"
 
 		},
@@ -1198,7 +1198,7 @@ It's not fully up to date on new functions because it reflects the main version,
 As a conclusion, I'm gonna editorialize and give my recommendations:
 	Write with purpose. Avoid unnecessary math.
 		->But still, write in a way that lets you understand the concept. It's not bad to have an imperfect expression.
-		->This is why I added support for names for uid-based functions. var1("fade_factor") is more 
+		->This is why I added support for names for uid-based functions. var1("fade_factor") is more
 
 	-More to the point, please have patience and deliberation. Make sure every piece works BEFORE moving on and making it more complex.
 		->A very common problem that people do is they add stuff randomly by cobbling stuff together not knowing why. Please don't do things haphazardly.

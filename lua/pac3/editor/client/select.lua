@@ -342,7 +342,7 @@ function pace.SelectPart(parts, callback, property)
 	pace.selecting_property = property
 	pac.AddHook("Tick", "selecting_part", function()
 		if not pace.selecting_property_key then pac.RemoveHook("Tick", "selecting_part") pace.bypass_tree = false end
-		if last_current_part ~= pace.current_part then --we've selected another part so 
+		if last_current_part ~= pace.current_part then --we've selected another part so
 			local new_select = pace.current_part
 			last_current_part["Set" .. pace.selecting_property_key](last_current_part, new_select)
 			pace.bypass_tree = false
@@ -384,7 +384,7 @@ end
 
 function pace.SelectEntity(callback)
 	select_something(
-		ents.GetAll(),
+		ents.GetAll(), --  have to keep as ents.GetAll() because it's passed to select_something which uses pairs()
 
 		function(_, ent)
 			return

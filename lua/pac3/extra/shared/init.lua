@@ -15,7 +15,7 @@ if CLIENT then
 			local dir = pace.ViewPos - ent:EyePos()
 			local dist = ent:BoundingRadius() * (5 + ent:GetModelScale())
 
-			local filter = player.GetAll()
+			local filter = player.GetAll() -- util.TraceHull filter requires a table
 			table.insert(filter, ent)
 
 			if dir:LengthSqr() > (dist * dist) then
