@@ -124,19 +124,42 @@ for shader_name, groups in pairs(shader_params.shaders) do
 	BUILDER:GetSet("LoadVmt", "", {editor_panel = "material"})
 	BUILDER:GetSet("CustomVmtFlags", "", {editor_panel = "string"})
 
-
-	function PART:SetLoadVmt(path)
-		if not path or path == "" then return end
-		if (self.Notes == "") or (string.sub(self.Notes, 1, 15) == "last loaded VMT") then
-			self:SetNotes("last loaded VMT: " .. path)
-		end
-
-		local str = file.Read("materials/" .. path .. ".vmt", "GAME")
-
-		if not str then return end
+-- import VMTs from files or raw text
+	function PART:ImportVmt(str, name, silent)
+		if not str or str == "" then return false end
 
 		local vmt = util.KeyValuesToTable(str)
-		local shader = str:match("^(.-)%{"):gsub("%p", ""):Trim()
+		if not vmt then
+			if not str:find("{", nil, true) then
+				str = '"VertexLitGeneric"\n{\n' .. str .. '\n}'
+				vmt = util.KeyValuesToTable(str)
+			end
+		end
+
+		if not vmt then
+			if not silent then
+				pac.Message("Failed to parse .vmt structure! Make sure it has valid key-value pairs.")
+			end
+			return false
+		end
+
+		local inner_vmt = nil
+		for k, v in pairs(vmt) do
+			if type(v) == "table" then
+				inner_vmt = v
+				break
+			end
+		end
+
+		if not inner_vmt then
+			inner_vmt = vmt
+		end
+
+		if name then
+			if (self.Notes == "") or (string.sub(self.Notes, 1, 15) == "last loaded VMT") then
+				self:SetNotes("last loaded VMT: " .. name)
+			end
+		end
 
 		for k,v in pairs(self:GetVars()) do
 			local param = PART.ShaderParams[k]
@@ -149,17 +172,18 @@ for shader_name, groups in pairs(shader_params.shaders) do
 		end
 
 		if dump_vmt_when_load_vmt:GetInt() == 1 then
-			print("====== VMT loaded: " .. path)
+			print("====== VMT loaded: " .. (name or "raw string"))
 		elseif dump_vmt_when_load_vmt:GetInt() == 2 then
-			print("\n====== "  .. path .. " raw VMT text:\n")
+			print("\n====== "  .. (name or "raw string") .. " raw VMT text:\n")
 			print(str)
 			print("====== extracted table:\n")
-			PrintTable(vmt)
+			PrintTable(inner_vmt)
 			print("\n======")
 		end
+
 		local errors = {"cannot convert material parameter:"}
 		self:SetCustomVmtFlags("")
-		for k,v in pairs(vmt) do
+		for k,v in pairs(inner_vmt) do
 			local orig_k = k
 			if k:StartWith("$") then k = k:sub(2) end
 
@@ -192,7 +216,7 @@ for shader_name, groups in pairs(shader_params.shaders) do
 				func(self, v)
 			else
 				table.insert(errors,k)
-				if dump_vmt_when_load_vmt:GetInt() == 2 then
+				if dump_vmt_when_load_vmt:GetInt() == 2 and not silent then
 					pac.Message("cannot convert material parameter " .. k)
 				end
 				local line = (orig_k:StartWith("$") and orig_k or "$" .. orig_k) .. " \"" .. tostring(v) .. "\""
@@ -204,9 +228,21 @@ for shader_name, groups in pairs(shader_params.shaders) do
 				end
 			end
 		end
-		if #errors > 1 then self:SetWarning(table.concat(errors, "\n")) else self:SetWarning() end
+		if #errors > 1 then
+			if not silent then self:SetWarning(table.concat(errors, "\n")) end
+		else
+			self:SetWarning()
+		end
+		return true
 	end
--- you can export VMTs from material parts now!
+
+	function PART:SetLoadVmt(path)
+		if not path or path == "" then return end
+		local str = file.Read("materials/" .. path .. ".vmt", "GAME")
+		if not str then return end
+		self:ImportVmt(str, path)
+	end
+-- you can also export VMTs from material parts now!
 	function PART:GetVmtString()
 		local out = {}
 		table_insert(out, '"' .. shader_name .. '"')

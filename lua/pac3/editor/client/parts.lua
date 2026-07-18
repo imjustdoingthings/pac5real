@@ -3996,6 +3996,88 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 		function include_datetime.OnChecked(self, b)
 			pace.VmtExport_include_datetime = b
 		end
+
+		local import_submenu, import_pnl = menu:AddSubMenu("Import VMT")
+		import_pnl:SetImage("icon16/page_add.png")
+
+		import_submenu:AddOption("from clipboard", function()
+			local frame = vgui.Create("DFrame")
+			frame:SetSize(400, 300)
+			frame:SetTitle("Paste VMT Content")
+			frame:Center()
+			frame:MakePopup()
+
+			local text = vgui.Create("DTextEntry", frame)
+			text:Dock(FILL)
+			text:SetMultiline(true)
+			text:SetPlaceholderText('paste your .vmt code here (e.g. "VertexLitGeneric" { ... } or just plain parameters like $basetexture ...)')
+
+			local button = vgui.Create("DButton", frame)
+			button:Dock(BOTTOM)
+			button:SetText("Import")
+			button.DoClick = function()
+				local str = text:GetText()
+				if str and str ~= "" then
+					local success = obj:ImportVmt(str, "clipboard paste")
+					if success then
+						frame:Close()
+						pace.RefreshTree()
+					end
+				end
+			end
+		end):SetIcon("icon16/page_paste.png")
+
+		import_submenu:AddOption("from file (data/)...", function()
+			Derma_StringRequest("import VMT from file", "enter file path (must be relative to garrysmod/data/)", "pac3/vmt_exports/my_material.vmt", function(path)
+				if path == "" then return end
+				if string.sub(path, -4) ~= ".vmt" then path = path .. ".vmt" end
+				local str = file.Read(path, "DATA")
+				if not str then
+					pac.Message("failed to read file: " .. path)
+					return
+				end
+				local success = obj:ImportVmt(str, path)
+				if success then
+					pace.RefreshTree()
+				end
+			end)
+		end):SetIcon("icon16/folder_explore.png")
+
+		import_submenu:AddOption("from game files (materials/)...", function()
+			Derma_StringRequest("import .vmt from game materials", "enter material path (e.g. models/player/kleiner/kleiner_sheet)", "", function(path)
+				if path == "" then return end
+				obj:SetLoadVmt(path)
+				pace.RefreshTree()
+			end)
+		end):SetIcon("icon16/folder_explore.png")
+
+		menu:AddSpacer()
+
+		menu:AddOption("live-edit .vmt", function()
+			local frame = vgui.Create("DFrame")
+			frame:SetSize(500, 400)
+			frame:SetTitle("VMT Editor - " .. obj:GetName())
+			frame:Center()
+			frame:MakePopup()
+
+			local text = vgui.Create("DTextEntry", frame)
+			text:Dock(FILL)
+			text:SetMultiline(true)
+			text:SetPlaceholderText("edit parameters here...")
+			text:SetText(obj:GetVmtString())
+
+			text.OnTextChanged = function()
+				local val = text:GetText()
+				if val and val ~= "" then
+					obj:ImportVmt(val, "editor", true)
+				end
+			end
+			local old_OnClose = frame.OnClose
+			frame.OnClose = function()
+				if old_OnClose then old_OnClose() end
+				pace.RefreshTree()
+			end
+		end):SetIcon("icon16/page_white_edit.png")
 	end
 
 	if obj.ClassName == "camera" then
