@@ -5,12 +5,16 @@ SKIN.Author = "PAC3"
 SKIN.DermaVersion = 1
 SKIN.GwenTexture = Material("gwenskin/GModDefault.png")
 
-local base_skin = derma.GetSkinTable()["Default"]
-if base_skin then
-	SKIN.Colours = table.Copy(base_skin.Colours)
-else
-	SKIN.Colours = {}
-end
+SKIN.Colours = setmetatable({}, {
+	__index = function(t, k)
+		local default_skin = derma.GetSkinTable()["Default"]
+		if default_skin and default_skin.Colours and default_skin.Colours[k] then
+			t[k] = table.Copy(default_skin.Colours[k])
+			return t[k]
+		end
+		return nil
+	end
+})
 
 -- custom pac theme colors
 local bg_dark = Color(45, 45, 45, 255)
@@ -265,3 +269,18 @@ if dark_skin then
 		surface.DrawRect(x, y, w, h)
 	end
 end
+
+-- override DermaMenu to inherit the active pac theme when the editor is open
+local original_DermaMenu = DermaMenu
+function DermaMenu(parent, ...)
+	local menu = original_DermaMenu(parent, ...)
+	if IsValid(menu) and pace and IsValid(pace.Editor) and pace.Editor:IsVisible() then
+		local cv = GetConVar("pac_editor_theme")
+		local active_theme = cv and cv:GetString() or "default"
+		if active_theme and active_theme ~= "" and active_theme ~= "default" then
+			menu:SetSkin(active_theme)
+		end
+	end
+	return menu
+end
+-- please work
