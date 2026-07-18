@@ -7,17 +7,27 @@ local particle_col = Color(255, 255, 255)
 local function GetTargetPart(self, uid_or_name)
 	if not uid_or_name or uid_or_name == "" then return nil end
 	local owner = self:GetPlayerOwner()
-	if not IsValid(owner) then return nil end
-	local part = pac.GetPartFromUniqueID(pac.Hash(owner), uid_or_name)
-	if not part then part = pac.FindPartByPartialUniqueID(pac.Hash(owner), uid_or_name) end
-	if not part then
-		for _, p in pairs(pac.GetParts(true)) do
-			if p:GetPlayerOwner() == owner and p.Name == uid_or_name then
-				return p
-			end
+	--standard lookup
+	if IsValid(owner) then
+		local part = pac.GetPartFromUniqueID(pac.Hash(owner), uid_or_name)
+		if part then return part end
+		part = pac.FindPartByPartialUniqueID(pac.Hash(owner), uid_or_name)
+		if part then return part end
+	end
+	-- search all parts matching owner
+	local hash_owner = IsValid(owner) and owner or nil
+	for _, p in pairs(pac.GetParts(true)) do
+		if (p.UniqueID == uid_or_name or p.Name == uid_or_name) and (not hash_owner or p:GetPlayerOwner() == hash_owner) then
+			return p
 		end
 	end
-	return part
+	for _, p in pairs(pac.GetParts(true)) do
+		if p.UniqueID == uid_or_name or p.Name == uid_or_name then
+			return p
+		end
+	end
+
+	return nil
 end
 local BUILDER, PART = pac.PartTemplate("base_drawable")
 
@@ -428,6 +438,10 @@ function PART:EmitParticles(pos, ang, real_ang)
 			local particle_pos = base_pos
 			local spawn_owner = nil
 			local target_part = GetTargetPart(self, self.SpawnTarget)
+			if not target_part and IsValid(self.TargetEntity) and self.TargetEntity ~= self then
+				target_part = self.TargetEntity
+			end
+
 			if target_part then
 				local ok, owner = pcall(target_part.GetOwner, target_part)
 				if ok and IsValid(owner) then
@@ -516,52 +530,60 @@ function PART:EmitParticles(pos, ang, real_ang)
 				vecAdd:Rotate(originalAng)
 				particle_pos = particle_pos + vecAdd
 			end
-			if self.MeshParticle and self.ParticleModel ~= "" then
-				self.MeshParticlesList = self.MeshParticlesList or {}
-				if #self.MeshParticlesList < 100 then
-					local ent_model = pac.CreateEntity(self.ParticleModel)
-					if IsValid(ent_model) then
-						ent_model:SetNoDraw(true)
-						ent_model:SetPos(particle_pos)
+			if self.MeshParticle then
+				local model_path = self.ParticleModel
+				if (model_path == "" or model_path == "models/props_junk/watermelon01.mdl") and IsValid(spawn_owner) and spawn_owner:GetModel() then
+					if target_part and target_part:GetOwner() ~= self:GetPlayerOwner() then
+						model_path = spawn_owner:GetModel()
+					end
+				end
+				if model_path ~= "" then
+					self.MeshParticlesList = self.MeshParticlesList or {}
+					if #self.MeshParticlesList < 100 then
+						local ent_model = pac.CreateEntity(model_path)
+						if IsValid(ent_model) then
+							ent_model:SetNoDraw(true)
+							ent_model:SetPos(particle_pos)
 
-						if self.Additive then ent_model:SetRenderMode(RENDERMODE_TRANSADD)
-						elseif self.Translucent or self.StartAlpha < 255 or self.EndAlpha < 255 then ent_model:SetRenderMode(RENDERMODE_TRANSALPHA)
+							if self.Additive then ent_model:SetRenderMode(RENDERMODE_TRANSADD)
+							elseif self.Translucent or self.StartAlpha < 255 or self.EndAlpha < 255 then ent_model:SetRenderMode(RENDERMODE_TRANSALPHA)
+							end
+
+							if self.ZeroAngle then ent_model:SetAngles(Angle(0,0,0))
+							else ent_model:SetAngles(ang:Angle() + self.ParticleAngle) end
+
+							local spawn_vec = Vector(vec.x, vec.y, vec.z)
+							if self.OwnerVelocityMultiplier ~= 0 then
+								local root_owner = self:GetRootPart():GetOwner()
+								if root_owner:IsValid() then spawn_vec = spawn_vec + (root_owner:GetVelocity() * self.OwnerVelocityMultiplier) end
+							end
+
+							local life = math.Clamp(self.DieTime, 0.0001, 50)
+							if self.AddFrametimeLife then life = life + frametime_val end
+
+							local cur_time = CurTime()
+							self.MeshParticlesList[#self.MeshParticlesList + 1] = {
+								ent = ent_model,
+								vel = (spawn_vec + ang) * self.Velocity,
+								ang_vel = Angle(self.ParticleAngleVelocity.x, self.ParticleAngleVelocity.y, self.ParticleAngleVelocity.z),
+								roll_speed = self.RandomRollSpeed * 36,
+								roll_delta = self.RollDelta + roll,
+								life = cur_time + life,
+								start_time = cur_time,
+								die_time = life,
+								gravity = self.Gravity,
+								bounce = self.Bounce,
+								air_res = self.AirResistance,
+								collide = self.Collide,
+								sliding = self.Sliding,
+								start_size = self.StartSize,
+								end_size = self.EndSize,
+								start_a = self.StartAlpha,
+								end_a = self.EndAlpha,
+								color1 = self.Color1,
+								color2 = self.ColorRamp and self.Color2 or self.Color1
+							}
 						end
-
-						if self.ZeroAngle then ent_model:SetAngles(Angle(0,0,0))
-						else ent_model:SetAngles(ang:Angle() + self.ParticleAngle) end
-
-						local spawn_vec = Vector(vec.x, vec.y, vec.z)
-						if self.OwnerVelocityMultiplier ~= 0 then
-							local root_owner = self:GetRootPart():GetOwner()
-							if root_owner:IsValid() then spawn_vec = spawn_vec + (root_owner:GetVelocity() * self.OwnerVelocityMultiplier) end
-						end
-
-						local life = math.Clamp(self.DieTime, 0.0001, 50)
-						if self.AddFrametimeLife then life = life + frametime_val end
-
-						local cur_time = CurTime()
-						self.MeshParticlesList[#self.MeshParticlesList + 1] = {
-							ent = ent_model,
-							vel = (spawn_vec + ang) * self.Velocity,
-							ang_vel = Angle(self.ParticleAngleVelocity.x, self.ParticleAngleVelocity.y, self.ParticleAngleVelocity.z),
-							roll_speed = self.RandomRollSpeed * 36,
-							roll_delta = self.RollDelta + roll,
-							life = cur_time + life,
-							start_time = cur_time,
-							die_time = life,
-							gravity = self.Gravity,
-							bounce = self.Bounce,
-							air_res = self.AirResistance,
-							collide = self.Collide,
-							sliding = self.Sliding,
-							start_size = self.StartSize,
-							end_size = self.EndSize,
-							start_a = self.StartAlpha,
-							end_a = self.EndAlpha,
-							color1 = self.Color1,
-							color2 = self.ColorRamp and self.Color2 or self.Color1
-						}
 					end
 				end
 				continue
