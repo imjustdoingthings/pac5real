@@ -29,6 +29,20 @@ PART.Icon = "icon16/clock.png"
 
 PART.ImplementsDoubleClickSpecified = true
 
+function PART:CanSleep()
+	-- if an event acts as a global controller by targeting external parts it must never sleep
+	if self.DestinationPartUID and self.DestinationPartUID ~= "" then return false end
+	if self.MultipleTargetParts and self.MultipleTargetParts ~= "" then return false end
+
+	-- Ii this event is actively hiding its parent it must stay awake to evaluate when to unhide it
+	local parent = self:GetParent()
+	if IsValid(parent) and parent.active_events and parent.active_events[self] then
+		return false
+	end
+
+	return true
+end
+
 BUILDER:StartStorableVars()
 	BUILDER:GetSet("Event", "", {enums = function(part)
 		local output = {}
@@ -4600,13 +4614,13 @@ do
 			self.grow = self.grow*0.9 + grow -- Framerate will affect this effect's speed but oh well
 
 			local scale = gScale*(1 + self.grow*0.2)
-			
+
 			shared_draw_matrix:Identity()
 			shared_draw_vec1:SetUnpacked(scrw2, scrh2, 0)
 			shared_draw_matrix:SetTranslation(shared_draw_vec1)
 			shared_draw_vec2:SetUnpacked(scale, scale, scale)
 			shared_draw_matrix:Scale(shared_draw_vec2)
-			
+
 			cam.PushModelMatrix(shared_draw_matrix)
 
 			local x, y = self.x*radius, self.y*radius

@@ -1442,11 +1442,32 @@ do -- serializing
 end
 
 do
+	function PART:CanSleep()
+		return true
+	end
+
 	function PART:Think()
 		if not self.Enabled then return end
+
+		local hidden = self:IsHiddenCached()
+		-- pause expensive Think ticks (especially for events) if hidden for >5s.
+		if hidden then
+			if not self.last_hidden_time then
+				self.last_hidden_time = pac.RealTime
+			elseif pac.RealTime - self.last_hidden_time > 5 then
+				if self:CanSleep() then
+					self.IsSleeping = true
+					return
+				end
+			end
+		else
+			self.last_hidden_time = nil
+			self.IsSleeping = false
+		end
+
 		if self.ThinkTime ~= 0 and self.last_think and self.last_think > pac.RealTime then return end
 
-		if not self.AlwaysThink and self:IsHiddenCached() then
+		if not self.AlwaysThink and hidden then
 			self:AlwaysOnThink() -- for things that drive general logic
 			-- such as processing outfit URL downloads
 			-- without calling probably expensive self:OnThink()
