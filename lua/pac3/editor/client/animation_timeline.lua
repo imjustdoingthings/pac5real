@@ -709,6 +709,7 @@ do
 
 	function TIMELINE:Think()
 		DFrame.Think(self)
+		if not IsValid(pace.Editor) then return end
 
 		if pace.Editor:GetPos() + pace.Editor:GetWide() / 2 < ScrW() / 2 then
 			self:SetSize(ScrW() - (pace.Editor.x + pace.Editor:GetWide()), 93)
