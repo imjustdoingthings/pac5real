@@ -2057,6 +2057,16 @@ pac.AddHook("pace_OnPartSelected", "warn_if_empty_proxy_variablename", function(
 end)
 
 function PART:OnThink(to_hide)
+	if self.is_thinking then return end
+	self.is_thinking = true
+	
+	local ok, err = pcall(self.InternalOnThink, self, to_hide)
+	
+	self.is_thinking = false
+	if not ok then error(err) end
+end
+
+function PART:InternalOnThink(to_hide)
 	local playerowner = self:GetPlayerOwner() == pac.LocalPlayer
 	local part = self:GetTarget()
 	if not part:IsValid() then return end

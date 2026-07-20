@@ -74,7 +74,7 @@ BUILDER
 :StartStorableVars()
 	:GetSet("Loop", true)
 	:GetSet("PingPongLoop", false)
-	:GetSet("SequenceName", "", {enums = function(part) local tbl = {} local list = part:GetSequenceList() for i = 1, #list do tbl[v] = v end return tbl end})
+	:GetSet("SequenceName", "", {enums = function(part) local tbl = {} local list = part:GetSequenceList() for i = 1, #list do tbl[list[i]] = list[i] end return tbl end})
 	:GetSet("Rate", 1, {editor_sensitivity = 0.1})
 	:GetSet("Offset", 0)
 	:GetSet("Min", 0)
