@@ -118,13 +118,51 @@ BUILDER:EndStorableVars()
 PART.Translucent = false
 
 
+function PART:OnThink()
+	if not self.OutfitPart or not self.OutfitPart:IsValid() then return end
+	-- disable caching/pre-rendering while editing the outfit so changes apply instantly
+	if pace and pace.IsActive() then self.cached_outfit_table = nil return end
+	self.projectile_pool = self.projectile_pool or {}
+	-- cache the outfit table to avoid expensive ToTable calls every frame
+	if not self.cached_outfit_table or self.cached_outfit_part ~= self.OutfitPart then
+		self.cached_outfit_table = self.OutfitPart:ToTable()
+		self.cached_outfit_part = self.OutfitPart
+	end
+	local pool_count = 0
+	for i = #self.projectile_pool, 1, -1 do
+		local cached = self.projectile_pool[i]
+		if IsValid(cached.group) then
+			if not IsValid(cached.group:GetOwner()) or cached.group:GetOwner() == NULL then
+				pool_count = pool_count + 1
+			end
+		else
+			table.remove(self.projectile_pool, i)
+		end
+	end
+	local max_buffer = math.min(self.Maximum > 0 and self.Maximum or 10, 10)
+	if pool_count < max_buffer then
+		local tbl = self.cached_outfit_table
+		local group = pac.CreatePart("group", self:GetPlayerOwner())
+		group:SetShowInEditor(false)
+		local part = pac.CreatePart(tbl.self.ClassName, self:GetPlayerOwner(), tbl, tostring(tbl))
+		group:AddChild(part)
+		group:SetOwner(NULL)
+		part:SetHide(true)
+		table.insert(self.projectile_pool, {group = group, part = part})
+	end
+end
+
 function PART:OnShow(from_rendering)
 	if not from_rendering then
-		if self.projectile_pool then
-			for _, cached in ipairs(self.projectile_pool) do
-				if IsValid(cached.group) then cached.group:Remove() end
+		-- only purge the pool if we are actively editing, so changes apply immediately
+		-- otherwise, keep the cached pool to prevent stuttering!
+		if pace and pace.IsActive() then
+			if self.projectile_pool then
+				for _, cached in ipairs(self.projectile_pool) do
+					if IsValid(cached.group) then cached.group:Remove() end
+				end
+				self.projectile_pool = {}
 			end
-			self.projectile_pool = {}
 		end
 
 		-- TODO:
@@ -183,7 +221,7 @@ function PART:AttachToEntity(ent, physical, cached_tbl)
 	end
 
 	if not group then
-		local tbl = cached_tbl or self.OutfitPart:ToTable()
+		local tbl = cached_tbl or self.cached_outfit_table or self.OutfitPart:ToTable()
 
 		group = pac.CreatePart("group", self:GetPlayerOwner())
 		group:SetShowInEditor(false)
@@ -202,7 +240,7 @@ function PART:AttachToEntity(ent, physical, cached_tbl)
 		id = id .. owner_id
 	end
 
-	ent:CallOnRemove("pac_projectile_" .. id, function() 
+	ent:CallOnRemove("pac_projectile_" .. id, function()
 		if IsValid(self) and IsValid(group) then
 			part:SetHide(true)
 			group.SetOwner = nil
@@ -212,7 +250,7 @@ function PART:AttachToEntity(ent, physical, cached_tbl)
 			group:Remove()
 		end
 	end)
-	
+
 	group:CallRecursive("Think")
 
 	ent.RenderOverride = ent.RenderOverride or function()
@@ -333,7 +371,7 @@ function PART:Shoot(pos, ang, multi_projectile_count)
 			else
 				net.WriteUInt(self.Radius,12)
 			end
-			
+
 			net.WriteUInt(self.DamageRadius,12)
 			net.WriteUInt(self.Damage,24)
 			net.WriteInt(1000*self.Speed,18)
@@ -370,12 +408,12 @@ function PART:Shoot(pos, ang, multi_projectile_count)
 		if count > max then
 			return
 		end
-		
+
 		local cached_tbl
 		if self.Delay == 0 and multi_projectile_count > 1 and self.OutfitPart:IsValid() then
 			cached_tbl = self.OutfitPart:ToTable()
 		end
-		
+
 		local root_owner = self:GetRootPart():GetOwner()
 
 		local function spawn()
