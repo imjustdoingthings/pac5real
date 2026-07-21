@@ -191,6 +191,15 @@ function PART:OnShow(from_rendering)
 	end
 end
 
+function PART:OnRemove()
+	if self.projectile_pool then
+		for _, cached in ipairs(self.projectile_pool) do
+			if IsValid(cached.group) then cached.group:Remove() end
+		end
+		self.projectile_pool = {}
+	end
+end
+
 function PART:GetSurfacePropsTable() --to view info over in the properties
 	return util.GetSurfaceData(physprop_indices[self.SurfaceProperties])
 end
