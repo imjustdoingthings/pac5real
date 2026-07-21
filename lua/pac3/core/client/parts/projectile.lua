@@ -131,8 +131,8 @@ function PART:OnThink()
 	local pool_count = 0
 	for i = #self.projectile_pool, 1, -1 do
 		local cached = self.projectile_pool[i]
-		if IsValid(cached.group) then
-			if not IsValid(cached.group:GetOwner()) or cached.group:GetOwner() == NULL then
+		if cached.group:IsValid() then
+			if not IsValid(cached.group.Owner) then
 				pool_count = pool_count + 1
 			end
 		else
@@ -148,6 +148,7 @@ function PART:OnThink()
 		group:AddChild(part)
 		group:SetOwner(NULL)
 		part:SetHide(true)
+		group:SetEnabled(false) -- fully suspend all logic in the tree to save FPS
 		table.insert(self.projectile_pool, {group = group, part = part})
 	end
 end
@@ -159,7 +160,7 @@ function PART:OnShow(from_rendering)
 		if pace and pace.IsActive() then
 			if self.projectile_pool then
 				for _, cached in ipairs(self.projectile_pool) do
-					if IsValid(cached.group) then cached.group:Remove() end
+					if cached.group:IsValid() then cached.group:Remove() end
 				end
 				self.projectile_pool = {}
 			end
@@ -194,7 +195,7 @@ end
 function PART:OnRemove()
 	if self.projectile_pool then
 		for _, cached in ipairs(self.projectile_pool) do
-			if IsValid(cached.group) then cached.group:Remove() end
+			if cached.group:IsValid() then cached.group:Remove() end
 		end
 		self.projectile_pool = {}
 	end
@@ -217,8 +218,8 @@ function PART:AttachToEntity(ent, physical, cached_tbl)
 
 	for i = #self.projectile_pool, 1, -1 do
 		local cached = self.projectile_pool[i]
-		if IsValid(cached.group) then
-			if not IsValid(cached.group:GetOwner()) or cached.group:GetOwner() == NULL then
+		if cached.group:IsValid() then
+			if not IsValid(cached.group.Owner) then
 				group = cached.group
 				part = cached.part
 				table.remove(self.projectile_pool, i)
@@ -249,17 +250,20 @@ function PART:AttachToEntity(ent, physical, cached_tbl)
 		id = id .. owner_id
 	end
 
-	ent:CallOnRemove("pac_projectile_" .. id, function()
-		if IsValid(self) and IsValid(group) then
+	ent:CallOnRemove("pac_projectile_" .. id, function() 
+		local cached_group_valid = group:IsValid()
+		if IsValid(self) and cached_group_valid then
 			part:SetHide(true)
 			group.SetOwner = nil
 			group:SetOwner(NULL)
+			group:SetEnabled(false)
 			table.insert(self.projectile_pool, {group = group, part = part})
-		elseif IsValid(group) then
+		elseif cached_group_valid then
 			group:Remove()
 		end
 	end)
-
+	
+	group:SetEnabled(true)
 	group:CallRecursive("Think")
 
 	ent.RenderOverride = ent.RenderOverride or function()
